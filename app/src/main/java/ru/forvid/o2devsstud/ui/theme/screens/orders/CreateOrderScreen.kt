@@ -13,6 +13,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -29,16 +30,18 @@ fun CreateOrderScreen(
     modifier: Modifier = Modifier,
     viewModel: OrdersViewModel = hiltViewModel()
 ) {
-    // Локальные состояния полей формы
-    var from by remember { mutableStateOf("") }
-    var to by remember { mutableStateOf("") }
-    var requestNumber by remember { mutableStateOf("") }
-    var estimatedDaysText by remember { mutableStateOf("") }
+    // Локальные состояния полей формы — rememberSaveable чтобы не терять при конфигурации
+    var from by rememberSaveable { mutableStateOf("") }
+    var to by rememberSaveable { mutableStateOf("") }
+    var requestNumber by rememberSaveable { mutableStateOf("") }
+    var estimatedDaysText by rememberSaveable { mutableStateOf("") }
 
     // Валидация простая: не пусто и days — число > 0
-    val isFormValid by derivedStateOf {
-        from.isNotBlank() && to.isNotBlank() && requestNumber.isNotBlank() &&
-                estimatedDaysText.toIntOrNull()?.let { it > 0 } == true
+    val isFormValid by remember {
+        derivedStateOf {
+            from.isNotBlank() && to.isNotBlank() && requestNumber.isNotBlank() &&
+                    estimatedDaysText.toIntOrNull()?.let { it > 0 } == true
+        }
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -104,7 +107,6 @@ fun CreateOrderScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
-                        // Сохранение: приводим estimatedDays к Int
                         val days = estimatedDaysText.toIntOrNull() ?: 1
                         viewModel.createOrder(from = from.trim(), to = to.trim(), requestNumber = requestNumber.trim(), estimatedDays = days)
                         onBack()

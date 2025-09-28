@@ -24,9 +24,11 @@ class OrdersViewModel @Inject constructor(
         load()
     }
 
-    private fun load() {
+    // Загружает список асинхронно
+    fun load() {
         viewModelScope.launch {
-            _orders.value = repository.getAll()
+            val list = repository.getAll()
+            _orders.value = list
         }
     }
 
@@ -37,24 +39,26 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    fun createOrder(from: String, to: String, requestNumber: String, estimatedDays: Int) {
+    fun getOrder(orderId: Long, callback: (Order?) -> Unit) {
         viewModelScope.launch {
-            repository.create(
-                Order(
-                    id = 0L,
-                    from = from,
-                    to = to,
-                    requestNumber = requestNumber,
-                    status = OrderStatus.PLACED,
-                    estimatedDays = estimatedDays
-                )
-            )
-            _orders.value = repository.getAll()
+            val o = repository.getById(orderId)
+            callback(o)
         }
     }
 
-    // Получить заказ прямо из текущего стейта UI (быстрая помощ. функция)
-    fun getOrderFromState(orderId: Long): Order? {
-        return _orders.value.find { it.id == orderId }
+    fun createOrder(from: String, to: String, requestNumber: String, estimatedDays: Int) {
+        viewModelScope.launch {
+            // В простом примере генерируем id как текущее время
+            val newOrder = Order(
+                id = System.currentTimeMillis(),
+                from = from,
+                to = to,
+                requestNumber = requestNumber,
+                status = OrderStatus.PLACED,
+                estimatedDays = estimatedDays
+            )
+            repository.insert(newOrder)
+            _orders.value = repository.getAll()
+        }
     }
 }
