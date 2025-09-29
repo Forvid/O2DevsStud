@@ -12,10 +12,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
 
-    // bind Room implementation to interface
     @Binds
     @Singleton
-    abstract fun bindOrdersRepository(
-        room: RoomOrdersRepository
-    ): OrdersRepository
+    abstract fun bindOrdersRepository(repo: RoomOrdersRepository): OrdersRepository
 }

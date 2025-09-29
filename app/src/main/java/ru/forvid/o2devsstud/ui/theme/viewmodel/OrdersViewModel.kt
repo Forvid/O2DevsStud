@@ -11,6 +11,7 @@ import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.domain.model.OrderStatus
 import ru.forvid.o2devsstud.domain.repository.OrdersRepository
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 
 @HiltViewModel
 class OrdersViewModel @Inject constructor(
@@ -47,10 +48,11 @@ class OrdersViewModel @Inject constructor(
     }
 
     fun createOrder(from: String, to: String, requestNumber: String, estimatedDays: Int) {
-        viewModelScope.launch {
-            // В простом примере генерируем id как текущее время
+        viewModelScope.launch(Dispatchers.IO) {
+            // генерируем id (простой метод — максимум +1)
+            val newId = (repository.getAll().maxOfOrNull { it.id } ?: 0L) + 1
             val newOrder = Order(
-                id = System.currentTimeMillis(),
+                id = newId,
                 from = from,
                 to = to,
                 requestNumber = requestNumber,
@@ -58,7 +60,8 @@ class OrdersViewModel @Inject constructor(
                 estimatedDays = estimatedDays
             )
             repository.insert(newOrder)
-            _orders.value = repository.getAll()
+            // обновляем UI на основном потоке
+            load()
         }
     }
 }

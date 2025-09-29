@@ -7,8 +7,7 @@ import androidx.room.Query
 
 @Dao
 interface OrderDao {
-
-    @Query("SELECT * FROM orders")
+    @Query("SELECT * FROM orders ORDER BY id")
     suspend fun getAll(): List<OrderEntity>
 
     @Query("SELECT * FROM orders WHERE id = :id LIMIT 1")

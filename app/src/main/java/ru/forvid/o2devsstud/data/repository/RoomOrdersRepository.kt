@@ -15,25 +15,23 @@ class RoomOrdersRepository @Inject constructor(
     private val dao: OrderDao
 ) : OrdersRepository {
 
-    private fun entityToDomain(e: OrderEntity): Order =
-        Order(
-            id = e.id,
-            from = e.fromAddress,
-            to = e.toAddress,
-            requestNumber = e.requestNumber,
-            status = try { OrderStatus.valueOf(e.status) } catch (t: Throwable) { OrderStatus.PLACED },
-            estimatedDays = e.estimatedDays
-        )
+    private fun entityToDomain(e: OrderEntity): Order = Order(
+        id = e.id,
+        from = e.fromAddress,
+        to = e.toAddress,
+        requestNumber = e.requestNumber,
+        status = try { OrderStatus.valueOf(e.status) } catch (t: Throwable) { OrderStatus.PLACED },
+        estimatedDays = e.estimatedDays
+    )
 
-    private fun domainToEntity(o: Order): OrderEntity =
-        OrderEntity(
-            id = o.id,
-            fromAddress = o.from,
-            toAddress = o.to,
-            requestNumber = o.requestNumber,
-            status = o.status.name,
-            estimatedDays = o.estimatedDays
-        )
+    private fun domainToEntity(o: Order): OrderEntity = OrderEntity(
+        id = o.id,
+        fromAddress = o.from,
+        toAddress = o.to,
+        requestNumber = o.requestNumber,
+        status = o.status.name,
+        estimatedDays = o.estimatedDays
+    )
 
     override suspend fun getAll(): List<Order> = withContext(Dispatchers.IO) {
         dao.getAll().map { entityToDomain(it) }
