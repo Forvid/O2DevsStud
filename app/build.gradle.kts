@@ -16,10 +16,13 @@ android {
         versionCode = 1
         versionName = "0.1"
 
-        // тестовый раннер для androidTest
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // использую placeholder, который подставит значение из strings.xml
         manifestPlaceholders["googleMapsApiKey"] = "@string/google_maps_key"
+
+        // ключ из project properties (local.properties).
+        buildConfigField("String", "SERVER_API_KEY", "\"${project.findProperty("SERVER_API_KEY") ?: ""}\"")
     }
 
     compileOptions {
@@ -34,11 +37,11 @@ android {
 
     buildFeatures {
         compose = true
+        // <-- обязательно включаем генерацию BuildConfig, иначе кастомные поля не сгенерируются
+        buildConfig = true
     }
 
     composeOptions {
-        // если вы используете Compose Compiler 1.5.x — оно должно соответствовать версии Kotlin.
-        // Мы используем BOM ниже, поэтому версий UI/Material возьмутся автоматически.
         kotlinCompilerExtensionVersion = "1.5.15"
     }
 
@@ -59,11 +62,11 @@ dependencies {
     // Kotlin
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.25")
 
-    // Compose BOM — держит версии согласованными
+    // Compose BOM
     implementation(platform("androidx.compose:compose-bom:2024.02.02"))
     implementation("androidx.activity:activity-compose:1.8.2")
-    implementation("androidx.compose.ui:ui")             // from BOM
-    implementation("androidx.compose.material3:material3:1.1.1") // Material3 (явно)
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3:1.1.1")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
@@ -97,11 +100,9 @@ dependencies {
     // Desugaring lib
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
-    // === TESTS ===
+    // Tests
     testImplementation("junit:junit:4.13.2")
-
-    // Для androidTest (инструментальных тестов) — важно иметь JUnit4 + AndroidX test libs
-    androidTestImplementation("junit:junit:4.13.2") // чтобы @RunWith был доступен в androidTest
+    androidTestImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test:runner:1.5.2")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

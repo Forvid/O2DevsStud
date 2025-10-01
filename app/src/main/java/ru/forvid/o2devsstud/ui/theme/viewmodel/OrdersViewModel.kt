@@ -11,7 +11,6 @@ import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.domain.model.OrderStatus
 import ru.forvid.o2devsstud.domain.repository.OrdersRepository
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
 
 @HiltViewModel
 class OrdersViewModel @Inject constructor(
@@ -25,11 +24,9 @@ class OrdersViewModel @Inject constructor(
         load()
     }
 
-    // Загружает список асинхронно
     fun load() {
         viewModelScope.launch {
-            val list = repository.getAll()
-            _orders.value = list
+            _orders.value = repository.getAll()
         }
     }
 
@@ -40,28 +37,30 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    fun getOrder(orderId: Long, callback: (Order?) -> Unit) {
+    fun getOrder(orderId: Long, onResult: (Order?) -> Unit) {
         viewModelScope.launch {
-            val o = repository.getById(orderId)
-            callback(o)
+            onResult(repository.getById(orderId))
         }
     }
 
     fun createOrder(from: String, to: String, requestNumber: String, estimatedDays: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            // генерируем id (простой метод — максимум +1)
-            val newId = (repository.getAll().maxOfOrNull { it.id } ?: 0L) + 1
-            val newOrder = Order(
-                id = newId,
+        viewModelScope.launch {
+            // создаём объект (в тестовом варианте id генерируем временно)
+            val id = System.currentTimeMillis() // простая генерация id для демо
+            val order = Order(
+                id = id,
                 from = from,
                 to = to,
                 requestNumber = requestNumber,
                 status = OrderStatus.PLACED,
                 estimatedDays = estimatedDays
             )
-            repository.insert(newOrder)
-            // обновляем UI на основном потоке
-            load()
+            try {
+                repository.insert(order)
+            } catch (e: Throwable) {
+                // логирование при необходимости
+            }
+            _orders.value = repository.getAll()
         }
     }
 }
