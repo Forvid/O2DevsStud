@@ -1,37 +1,40 @@
-package ru.forvid.o2devsstud.ui.viewmodel
+package ru.forvid.o2devsstud.ui.theme.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import javax.inject.Inject
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-
-data class AuthUiState(val isLoggedIn: Boolean = false, val errorMessage: String? = null)
+import ru.forvid.o2devsstud.data.repository.remote.AuthRepository
+import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    // можно внедрить AuthRepository (интерфейс)
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AuthUiState())
-    val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+    private val _token = MutableStateFlow<String?>(null)
+    val token: StateFlow<String?> = _token
 
-    fun login(login: String, pass: String) {
-        // Простейшая мок-валидация: логин = driver, pass = 1234
-        CoroutineScope(Dispatchers.IO).launch {
-            if (login == "driver" && pass == "1234") {
-                _uiState.value = AuthUiState(isLoggedIn = true, errorMessage = null)
-            } else {
-                _uiState.value = AuthUiState(isLoggedIn = false, errorMessage = "Неверный логин/пароль")
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
+    fun login(username: String, password: String) {
+        viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
+            try {
+                val token = authRepository.login(username, password)
+                _token.value = token
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Ошибка авторизации"
+            } finally {
+                _loading.value = false
             }
         }
-    }
-
-    fun logout() {
-        _uiState.value = AuthUiState(isLoggedIn = false, errorMessage = null)
     }
 }

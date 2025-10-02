@@ -1,71 +1,62 @@
-package ru.forvid.o2devsstud.ui.screens
+package ru.forvid.o2devsstud.ui.theme.screens.orders
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import ru.forvid.o2devsstud.ui.viewmodel.AuthViewModel
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import ru.forvid.o2devsstud.ui.theme.viewmodel.AuthViewModel
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: AuthViewModel = hiltViewModel()
+    viewModel: AuthViewModel = hiltViewModel(),
+    onLoginSuccess: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
-    var login by remember { mutableStateOf("") }
-    var pass by remember { mutableStateOf("") }
-
-    // Если уже авторизованы — переходим
-    LaunchedEffect(uiState.isLoggedIn) {
-        if (uiState.isLoggedIn) onLoginSuccess()
-    }
+    val token by viewModel.token.collectAsState()
+    val loading by viewModel.loading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Вход", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(24.dp))
-
         OutlinedTextField(
-            value = login,
-            onValueChange = { login = it },
+            value = username,
+            onValueChange = { username = it },
             label = { Text("Логин") },
             modifier = Modifier.fillMaxWidth()
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
+        Spacer(Modifier.height(8.dp))
         OutlinedTextField(
-            value = pass,
-            onValueChange = { pass = it },
+            value = password,
+            onValueChange = { password = it },
             label = { Text("Пароль") },
-            modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation()
+            modifier = Modifier.fillMaxWidth()
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
+        Spacer(Modifier.height(16.dp))
         Button(
-            onClick = { viewModel.login(login.trim(), pass.trim()) },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = login.isNotBlank() && pass.isNotBlank()
+            onClick = { viewModel.login(username, password) },
+            enabled = !loading,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Войти")
+            Text(if (loading) "Вход..." else "Войти")
         }
 
-        if (uiState.errorMessage != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(text = uiState.errorMessage ?: "", color = MaterialTheme.colorScheme.error)
+        Spacer(Modifier.height(16.dp))
+
+        if (error != null) {
+            Text("Ошибка: $error", color = MaterialTheme.colorScheme.error)
+        }
+
+        if (token != null) {
+            Text("Успех! Токен: $token")
+            onLoginSuccess()
         }
     }
 }
