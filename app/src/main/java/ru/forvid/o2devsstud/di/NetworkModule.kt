@@ -20,13 +20,15 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // Интерцептор добавляет ключ сервера в заголовок X-API-KEY.
-
+    // Интерцептор: добавляет заголовок с серверным ключом
     @Provides
     @Singleton
     fun provideApiKeyInterceptor(): Interceptor = Interceptor { chain ->
-        val apiKey = if (BuildConfig.SERVER_API_KEY.isNotBlank()) BuildConfig.SERVER_API_KEY
-        else "c1378193-bc0e-42c8-a502-b8d66d189617" // временный fallback (только для разработки)
+        val apiKey = BuildConfig.SERVER_API_KEY.ifBlank {
+            // fallback только для разработки — не хранить реальные ключи в коде
+            "c1378193-bc0e-42c8-a502-b8d66d189617"
+        }
+
         val original = chain.request()
         val request = original.newBuilder()
             .addHeader("X-API-KEY", apiKey)
@@ -34,22 +36,27 @@ object NetworkModule {
         chain.proceed(request)
     }
 
-
+    // OkHttp client с логированием
     @Provides
     @Singleton
     fun provideOkHttpClient(apiKeyInterceptor: Interceptor): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            // В debug смотрим BODY, в релизе — минимально
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+            else HttpLoggingInterceptor.Level.BASIC
         }
+
         return OkHttpClient.Builder()
-            .addInterceptor(apiKeyInterceptor)
-            .addInterceptor(logging)
+            .addInterceptor(apiKeyInterceptor)   // добавляем ключ в заголовок
+            .addInterceptor(logging)             // логируем (после добавления заголовка)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 
     @Provides
+    @Singleton
     fun provideGson(): Gson = GsonBuilder().create()
 
     @Provides
