@@ -12,7 +12,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import ru.forvid.o2devsstud.BuildConfig
-import ru.forvid.o2devsstud.data.remote.ApiService
+import ru.forvid.o2devsstud.data.repository.repository.ApiService
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -20,35 +20,30 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // Интерцептор: добавляет заголовок с серверным ключом
     @Provides
     @Singleton
     fun provideApiKeyInterceptor(): Interceptor = Interceptor { chain ->
         val apiKey = BuildConfig.SERVER_API_KEY.ifBlank {
-            // fallback только для разработки — не хранить реальные ключи в коде
+            // Фоллбек только для локальной разработки (НЕ пушить секреты в репозиторий)
             "c1378193-bc0e-42c8-a502-b8d66d189617"
         }
-
-        val original = chain.request()
-        val request = original.newBuilder()
+        val request = chain.request().newBuilder()
             .addHeader("X-API-KEY", apiKey)
             .build()
         chain.proceed(request)
     }
 
-    // OkHttp client с логированием
     @Provides
     @Singleton
     fun provideOkHttpClient(apiKeyInterceptor: Interceptor): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            // В debug смотрим BODY, в релизе — минимально
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
             else HttpLoggingInterceptor.Level.BASIC
         }
 
         return OkHttpClient.Builder()
-            .addInterceptor(apiKeyInterceptor)   // добавляем ключ в заголовок
-            .addInterceptor(logging)             // логируем (после добавления заголовка)
+            .addInterceptor(apiKeyInterceptor)
+            .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -56,14 +51,23 @@ object NetworkModule {
     }
 
     @Provides
-    @Singleton
     fun provideGson(): Gson = GsonBuilder().create()
 
     @Provides
     @Singleton
     fun provideRetrofit(client: OkHttpClient, gson: Gson): Retrofit {
+        // На реальном устройстве с adb reverse -> используем localhost 127.0.0.1:8080
+        // На эмуляторе используется 10.0.2.2:8080
+        val localForDevice = "http://127.0.0.1:8080/"
+        val emulator = "http://10.0.2.2:8080/"
+
+        val baseUrl = when {
+            BuildConfig.DEBUG -> localForDevice
+            else -> "http://94.228.125.136:8080/"
+        }
+
         return Retrofit.Builder()
-            .baseUrl("http://94.228.125.136:8080/") // сервер для диплома
+            .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()

@@ -1,4 +1,4 @@
-package ru.forvid.o2devsstud.ui.theme.screens.orders
+package ru.forvid.o2devsstud.ui.screens.orders
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*

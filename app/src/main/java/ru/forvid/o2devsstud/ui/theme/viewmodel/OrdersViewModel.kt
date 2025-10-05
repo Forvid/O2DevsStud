@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import ru.forvid.o2devsstud.data.remote.ApiService
-import ru.forvid.o2devsstud.data.remote.dto.OrderDto
+import ru.forvid.o2devsstud.data.repository.repository.ApiService
+import ru.forvid.o2devsstud.data.repository.remote.dto.dto.OrderDto
 import ru.forvid.o2devsstud.data.remote.dto.TrackDto
 import ru.forvid.o2devsstud.data.remote.dto.toDomain // <- важно: импорт extension-функции
 import ru.forvid.o2devsstud.domain.model.Order

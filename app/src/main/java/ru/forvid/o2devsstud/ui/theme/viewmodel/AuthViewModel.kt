@@ -1,40 +1,30 @@
-package ru.forvid.o2devsstud.ui.theme.viewmodel
+package ru.forvid.o2devsstud.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import ru.forvid.o2devsstud.data.repository.remote.AuthRepository
 import javax.inject.Inject
 
+data class AuthState(
+    val isAuthorized: Boolean = false,
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+
 @HiltViewModel
-class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
-) : ViewModel() {
+class AuthViewModel @Inject constructor() : ViewModel() {
+    private val _authState = MutableStateFlow(AuthState())
+    val authState: StateFlow<AuthState> = _authState
 
-    private val _token = MutableStateFlow<String?>(null)
-    val token: StateFlow<String?> = _token
-
-    private val _loading = MutableStateFlow(false)
-    val loading: StateFlow<Boolean> = _loading
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error
-
+    // Простейшая реализация. Можно заменить на реальную аутентификацию позже.
     fun login(username: String, password: String) {
-        viewModelScope.launch {
-            _loading.value = true
-            _error.value = null
-            try {
-                val token = authRepository.login(username, password)
-                _token.value = token
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Ошибка авторизации"
-            } finally {
-                _loading.value = false
-            }
-        }
+        _authState.value = _authState.value.copy(isLoading = true)
+        // имитация успешного логина (для сборки/тестов)
+        _authState.value = AuthState(isAuthorized = true, isLoading = false)
+    }
+
+    fun onSignOut() {
+        _authState.value = AuthState(isAuthorized = false)
     }
 }

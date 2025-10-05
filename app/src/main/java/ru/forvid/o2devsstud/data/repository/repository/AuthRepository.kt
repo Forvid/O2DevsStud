@@ -1,6 +1,5 @@
-package ru.forvid.o2devsstud.data.repository.remote
+package ru.forvid.o2devsstud.data.repository.repository
 
-import ru.forvid.o2devsstud.data.remote.ApiService
 import ru.forvid.o2devsstud.data.remote.dto.LoginRequestDto
 import javax.inject.Inject
 

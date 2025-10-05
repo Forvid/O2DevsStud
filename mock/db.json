@@ -1,0 +1,29 @@
+{
+  "orders": [
+    {
+      "order_id": 1,
+      "from_address": "Москва",
+      "to_address": "Питер",
+      "request_number": "AP-001",
+      "status": "PLACED",
+      "estimated_days": 3
+    },
+    {
+      "order_id": 2,
+      "from_address": "Омск",
+      "to_address": "Москва",
+      "request_number": "AP-002",
+      "status": "TAKEN",
+      "estimated_days": 2
+    }
+  ],
+  "tracks": [
+    {
+      "track_id": 1,
+      "points": [
+        { "lat": 55.75, "lon": 37.61 },
+        { "lat": 56.01, "lon": 37.0 }
+      ]
+    }
+  ]
+}

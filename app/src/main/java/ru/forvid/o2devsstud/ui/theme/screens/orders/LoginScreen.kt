@@ -1,12 +1,12 @@
-package ru.forvid.o2devsstud.ui.theme.screens.orders
+package ru.forvid.o2devsstud.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import ru.forvid.o2devsstud.ui.theme.viewmodel.AuthViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import ru.forvid.o2devsstud.ui.viewmodel.AuthViewModel
 
 @Composable
 fun LoginScreen(
@@ -16,9 +16,17 @@ fun LoginScreen(
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    val token by viewModel.token.collectAsState()
-    val loading by viewModel.loading.collectAsState()
-    val error by viewModel.error.collectAsState()
+    // Используем authState, как в MainActivity
+    val authState by viewModel.authState.collectAsState()
+
+    val loading = authState.isLoading
+    val error = authState.error
+    val isAuthorized = authState.isAuthorized
+
+    // Если уже авторизовались — перенаправляем
+    LaunchedEffect(isAuthorized) {
+        if (isAuthorized) onLoginSuccess()
+    }
 
     Column(
         modifier = Modifier
@@ -50,13 +58,8 @@ fun LoginScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        if (error != null) {
+        if (!error.isNullOrBlank()) {
             Text("Ошибка: $error", color = MaterialTheme.colorScheme.error)
-        }
-
-        if (token != null) {
-            Text("Успех! Токен: $token")
-            onLoginSuccess()
         }
     }
 }
