@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
@@ -28,15 +27,13 @@ import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
 fun CreateOrderScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OrdersViewModel = hiltViewModel()
+    viewModel: OrdersViewModel // теперь обязателен и передаётся из NavGraph
 ) {
-    // Локальные состояния полей формы — rememberSaveable чтобы не терять при конфигурации
     var from by rememberSaveable { mutableStateOf("") }
     var to by rememberSaveable { mutableStateOf("") }
     var requestNumber by rememberSaveable { mutableStateOf("") }
     var estimatedDaysText by rememberSaveable { mutableStateOf("") }
 
-    // Валидация простая: не пусто и days — число > 0
     val isFormValid by remember {
         derivedStateOf {
             from.isNotBlank() && to.isNotBlank() && requestNumber.isNotBlank() &&
@@ -108,7 +105,12 @@ fun CreateOrderScreen(
                 Button(
                     onClick = {
                         val days = estimatedDaysText.toIntOrNull() ?: 1
-                        viewModel.createOrder(from = from.trim(), to = to.trim(), requestNumber = requestNumber.trim(), estimatedDays = days)
+                        viewModel.createOrder(
+                            from = from.trim(),
+                            to = to.trim(),
+                            requestNumber = requestNumber.trim(),
+                            estimatedDays = days
+                        )
                         onBack()
                     },
                     enabled = isFormValid,

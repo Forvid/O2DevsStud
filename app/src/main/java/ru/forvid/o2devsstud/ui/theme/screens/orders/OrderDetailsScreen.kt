@@ -1,6 +1,9 @@
 package ru.forvid.o2devsstud.ui.screens.orders
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -8,13 +11,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.domain.model.OrderStatus
-import ru.forvid.o2devsstud.ui.theme.O2DevsStudTheme
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+
+private const val TAG = "OrderDetailsScreen"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,27 +27,36 @@ fun OrderDetailsScreen(
     onBack: () -> Unit,
     onConfirm: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OrdersViewModel = hiltViewModel()
+    viewModel: OrdersViewModel // передаётся из NavGraph
 ) {
     val orders by viewModel.orders.collectAsState()
     val order: Order? = orders.find { it.id == orderId }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("Детали заявки") },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        )
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Детали заявки") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            )
+        }
+    ) { innerPadding ->
         if (order == null) {
+            // пока заказ не найден — центрируем сообщение (учёт innerPadding)
             Column(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -51,10 +64,18 @@ fun OrderDetailsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(onClick = onBack) { Text("Назад") }
             }
-            return@Column
+            return@Scaffold
         }
 
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        // Основное содержимое — прокручиваемое
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(scrollState)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Откуда: ${order.from}")
@@ -73,23 +94,63 @@ fun OrderDetailsScreen(
 
             // --- Кнопки статусов ---
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // safe id handling
-                val id = order.id
-                StatusButton("Взял в работу") { id?.let { viewModel.changeStatus(it, OrderStatus.IN_WORK) } }
-                StatusButton("В дороге к месту погрузки") { id?.let { viewModel.changeStatus(it, OrderStatus.ON_WAY_TO_LOAD) } }
-                StatusButton("Машина загружена") { id?.let { viewModel.changeStatus(it, OrderStatus.LOADED) } }
-                StatusButton("В дороге на место разгрузки") { id?.let { viewModel.changeStatus(it, OrderStatus.ON_WAY_TO_UNLOAD) } }
-                StatusButton("На стоянке") { id?.let { viewModel.changeStatus(it, OrderStatus.PARKED) } }
-                StatusButton("ТС прибыло на место разгрузки") { id?.let { viewModel.changeStatus(it, OrderStatus.ARRIVED_UNLOAD) } }
-                StatusButton("Машина разгружена") { id?.let { viewModel.changeStatus(it, OrderStatus.UNLOADED) } }
-                StatusButton("Забрал документы") { id?.let { viewModel.changeStatus(it, OrderStatus.DOCUMENTS_TAKEN) } }
-            }
+                // запуск операции в корутине и логирование ошибки
+                StatusButton("Взял в работу") {
+                    scope.launch {
+                        runCatching { viewModel.changeStatus(order.id, OrderStatus.IN_WORK) }
+                            .onFailure { Log.e(TAG, "change status error", it) }
+                    }
+                }
+                StatusButton("В дороге к месту погрузки") {
+                    scope.launch {
+                        runCatching { viewModel.changeStatus(order.id, OrderStatus.ON_WAY_TO_LOAD) }
+                            .onFailure { Log.e(TAG, "change status error", it) }
+                    }
+                }
+                StatusButton("Машина загружена") {
+                    scope.launch {
+                        runCatching { viewModel.changeStatus(order.id, OrderStatus.LOADED) }
+                            .onFailure { Log.e(TAG, "change status error", it) }
+                    }
+                }
+                StatusButton("В дороге на место разгрузки") {
+                    scope.launch {
+                        runCatching { viewModel.changeStatus(order.id, OrderStatus.ON_WAY_TO_UNLOAD) }
+                            .onFailure { Log.e(TAG, "change status error", it) }
+                    }
+                }
+                StatusButton("На стоянке") {
+                    scope.launch {
+                        runCatching { viewModel.changeStatus(order.id, OrderStatus.PARKED) }
+                            .onFailure { Log.e(TAG, "change status error", it) }
+                    }
+                }
+                StatusButton("ТС прибыло на место разгрузки") {
+                    scope.launch {
+                        runCatching { viewModel.changeStatus(order.id, OrderStatus.ARRIVED_UNLOAD) }
+                            .onFailure { Log.e(TAG, "change status error", it) }
+                    }
+                }
+                StatusButton("Машина разгружена") {
+                    scope.launch {
+                        runCatching { viewModel.changeStatus(order.id, OrderStatus.UNLOADED) }
+                            .onFailure { Log.e(TAG, "change status error", it) }
+                    }
+                }
+                // кнопка, которая раньше крашила — тоже защищена
+                StatusButton("Забрал документы") {
+                    scope.launch {
+                        runCatching { viewModel.changeStatus(order.id, OrderStatus.DOCUMENTS_TAKEN) }
+                            .onFailure { Log.e(TAG, "change status error", it) }
+                    }
+                }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = { order.id?.let { onConfirm(it) } }, modifier = Modifier.weight(1f)) { Text("Подтвердить") }
-                Button(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Назад") }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = { onConfirm(order.id) }, modifier = Modifier.weight(1f)) { Text("Подтвердить") }
+                    Button(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Назад") }
+                }
             }
         }
     }

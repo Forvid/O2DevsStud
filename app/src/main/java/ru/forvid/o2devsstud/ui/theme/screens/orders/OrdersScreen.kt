@@ -11,12 +11,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import ru.forvid.o2devsstud.domain.model.Order
-import ru.forvid.o2devsstud.domain.model.OrderStatus
 import ru.forvid.o2devsstud.ui.components.OrderItem
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,7 +21,7 @@ fun OrdersScreen(
     onOpenOrder: (Long) -> Unit,
     onCreateOrder: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OrdersViewModel = hiltViewModel()
+    viewModel: OrdersViewModel // now passed from NavGraph (activity-scoped)
 ) {
     val orders by viewModel.orders.collectAsState()
 
