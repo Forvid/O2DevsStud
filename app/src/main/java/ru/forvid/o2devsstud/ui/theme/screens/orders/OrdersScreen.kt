@@ -20,8 +20,9 @@ import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
 fun OrdersScreen(
     onOpenOrder: (Long) -> Unit,
     onCreateOrder: () -> Unit,
+    onShowMap: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OrdersViewModel // now passed from NavGraph (activity-scoped)
+    viewModel: OrdersViewModel // passed from NavGraph
 ) {
     val orders by viewModel.orders.collectAsState()
 
@@ -48,8 +49,10 @@ fun OrdersScreen(
                         viewModel.changeStatus(id, status)
                     },
                     onPickDocuments = { id ->
-                        // пока просто открываем детали
                         onOpenOrder(id)
+                    },
+                    onShowMap = { trackId ->
+                        onShowMap(trackId)
                     },
                     modifier = Modifier
                         .fillMaxWidth()

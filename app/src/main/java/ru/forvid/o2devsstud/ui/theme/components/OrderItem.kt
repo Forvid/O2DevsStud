@@ -15,6 +15,7 @@ fun OrderItem(
     order: Order,
     onChangeStatus: (Long, OrderStatus) -> Unit,
     onPickDocuments: (Long) -> Unit,
+    onShowMap: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(modifier = modifier.padding(8.dp)) {
@@ -24,16 +25,13 @@ fun OrderItem(
             Text(text = "Заявка: ${order.requestNumber} · Статус: ${order.status}")
             Spacer(modifier = Modifier.height(6.dp))
             Text(text = "Расчетное время: ${order.estimatedDays} дн.")
-
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action buttons — пример набора
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Взял в работу
-                Button(onClick = { onChangeStatus(order.id, OrderStatus.TAKEN) }) {
+                Button(onClick = { onChangeStatus(order.id, OrderStatus.IN_WORK) }) {
                     Text("Взял в работу")
                 }
-                Button(onClick = { onChangeStatus(order.id, OrderStatus.IN_TRANSIT_TO_PICKUP) }) {
+                Button(onClick = { onChangeStatus(order.id, OrderStatus.ON_WAY_TO_LOAD) }) {
                     Text("В дороге к месту погрузки")
                 }
             }
@@ -44,7 +42,7 @@ fun OrderItem(
                 Button(onClick = { onChangeStatus(order.id, OrderStatus.LOADED) }) {
                     Text("Машина загружена")
                 }
-                Button(onClick = { onChangeStatus(order.id, OrderStatus.IN_TRANSIT_TO_DROPOFF) }) {
+                Button(onClick = { onChangeStatus(order.id, OrderStatus.ON_WAY_TO_UNLOAD) }) {
                     Text("В дороге на место разгрузки")
                 }
             }
@@ -55,7 +53,7 @@ fun OrderItem(
                 Button(onClick = { onChangeStatus(order.id, OrderStatus.PARKED) }) {
                     Text("На стоянке")
                 }
-                Button(onClick = { onChangeStatus(order.id, OrderStatus.ARRIVED_DROPOFF) }) {
+                Button(onClick = { onChangeStatus(order.id, OrderStatus.ARRIVED_UNLOAD) }) {
                     Text("ТС прибыло на место разгрузки")
                 }
             }
@@ -68,6 +66,15 @@ fun OrderItem(
                 }
                 Button(onClick = { onPickDocuments(order.id) }) {
                     Text("Забрал документы")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Показать на карте (если трек есть/будет по id)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Button(onClick = { onShowMap(order.id) }) {
+                    Text("Показать на карте")
                 }
             }
         }

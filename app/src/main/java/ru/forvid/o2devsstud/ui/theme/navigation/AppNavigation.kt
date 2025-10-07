@@ -30,6 +30,7 @@ sealed class Screen(val route: String) {
     }
     object DriverMap : Screen("driver_map")
     object Map : Screen("map")
+    // dynamic map route is "map/{trackId}" — not part of Screen sealed for convenience
     object History : Screen("history")
     object Profile : Screen("profile")
     object ContactDevelopers : Screen("contact_developers")
@@ -51,9 +52,7 @@ fun RootNavigation(navController: NavHostController, startDestination: String) {
 }
 
 /**
- * MainAppNavGraph — здесь создается activity-scoped OrdersViewModel и пробрасывается
- * его в все экраны, которые работают с заказами. Все экраны
- * читают/пишут данные в один и тот же экземпляр VM.
+ * MainAppNavGraph — activity-scoped OrdersViewModel пробрасывается в экраны, работающие с заказами.
  */
 @Composable
 fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValues) {
@@ -70,6 +69,7 @@ fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValu
             OrdersScreen(
                 onOpenOrder = { orderId -> navController.navigate(Screen.OrderDetails.createRoute(orderId)) },
                 onCreateOrder = { navController.navigate(Screen.CreateOrder.route) },
+                onShowMap = { trackId -> navController.navigate("map/$trackId") },
                 viewModel = sharedOrdersVm
             )
         }
@@ -116,8 +116,37 @@ fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValu
             })
         }
 
-        composable(Screen.DriverMap.route) { DriverMapScreen(onBack = { navController.popBackStack() }) }
-        composable(Screen.Map.route) { MapScreen() }
+        // Driver map (if you have a separate driver map screen)
+        composable(Screen.DriverMap.route) {
+            DriverMapScreen(onBack = { navController.popBackStack() })
+        }
+
+        // Simple map route (no track id) - show empty map or allow user interactions
+        composable(Screen.Map.route) {
+            val activity = LocalContext.current as ComponentActivity
+            val sharedOrdersVm: OrdersViewModel = hiltViewModel(activity)
+            MapScreen(
+                trackIdToShow = null,
+                viewModel = sharedOrdersVm,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Dynamic map route for specific track: map/{trackId}
+        composable(
+            route = "map/{trackId}",
+            arguments = listOf(navArgument("trackId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val activity = LocalContext.current as ComponentActivity
+            val sharedOrdersVm: OrdersViewModel = hiltViewModel(activity)
+            val trackId = backStackEntry.arguments?.getLong("trackId")
+            MapScreen(
+                trackIdToShow = trackId,
+                viewModel = sharedOrdersVm,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable(Screen.History.route) { StubScreen(name = "История поставок") }
         composable(Screen.Profile.route) { StubScreen(name = "Мой профиль") }
         composable(Screen.ContactDevelopers.route) { StubScreen(name = "Связаться с разработчиками") }

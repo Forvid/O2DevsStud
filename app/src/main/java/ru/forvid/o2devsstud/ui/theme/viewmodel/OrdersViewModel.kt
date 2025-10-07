@@ -6,13 +6,13 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import ru.forvid.o2devsstud.data.repository.repository.ApiService
-import ru.forvid.o2devsstud.data.repository.remote.dto.dto.OrderDto
 import ru.forvid.o2devsstud.data.remote.dto.TrackDto
+import ru.forvid.o2devsstud.data.repository.remote.dto.dto.OrderDto
 import ru.forvid.o2devsstud.data.remote.dto.toDomain
 import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.domain.model.OrderStatus
 import ru.forvid.o2devsstud.domain.repository.OrdersRepository
+import ru.forvid.o2devsstud.data.repository.repository.ApiService
 import javax.inject.Inject
 
 private const val TAG = "OrdersViewModel"
@@ -22,6 +22,16 @@ data class OrdersUiState(
     val isLoading: Boolean = false,
     val error: String? = null
 )
+
+/**
+ * Состояние загрузки трека для MapScreen.
+ */
+sealed class TrackState {
+    object Idle : TrackState()
+    object Loading : TrackState()
+    data class Success(val track: TrackDto) : TrackState()
+    data class Error(val message: String?) : TrackState()
+}
 
 @HiltViewModel
 class OrdersViewModel @Inject constructor(
@@ -34,6 +44,10 @@ class OrdersViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(OrdersUiState())
     val uiState: StateFlow<OrdersUiState> = _uiState.asStateFlow()
+
+    // Track loading state
+    private val _trackState = MutableStateFlow<TrackState>(TrackState.Idle)
+    val trackState: StateFlow<TrackState> = _trackState.asStateFlow()
 
     init {
         loadLocal()
@@ -85,10 +99,6 @@ class OrdersViewModel @Inject constructor(
         loadLocal()
     }
 
-    /**
-     * Безопасно меняем статус: сначала обновляем локально (оптимистично),
-     * затем пытаемся синхронизировать с репозиторием. При ошибке откатываем.
-     */
     fun changeStatus(orderId: Long, status: OrderStatus) {
         viewModelScope.launch {
             try {
@@ -99,20 +109,15 @@ class OrdersViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Optimistic update: заменим локальную запись
                 val mutable = current.toMutableList()
                 val old = mutable[idx]
                 mutable[idx] = old.copy(status = status)
                 _orders.value = mutable
                 _uiState.update { it.copy(orders = mutable, error = null) }
 
-                // Попытка отправить на репозиторий
                 repository.updateStatus(orderId, status)
-                // после успешного обновления на бэке можно при необходимости подтянуть заново:
-                // val refreshed = repository.getAll(); _orders.value = refreshed
             } catch (e: Throwable) {
                 Log.e(TAG, "Error updating status, rolling back", e)
-                // Попробуем восстановить из репозитория
                 try {
                     val refreshed = repository.getAll()
                     _orders.value = refreshed
@@ -125,13 +130,8 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    /**
-     * createOrder — optimistic update: сначала показываем в UI, затем сохраняем в репозиторий.
-     * Если репозиторий выбросит ошибку — откатываем.
-     */
     fun createOrder(from: String, to: String, requestNumber: String, estimatedDays: Int) {
         viewModelScope.launch {
-            // создание временного объекта с уникальным id (можно заменить на возвращаемый с сервера)
             val id = System.currentTimeMillis()
             val order = Order(
                 id = id,
@@ -143,19 +143,16 @@ class OrdersViewModel @Inject constructor(
             )
 
             val before = _orders.value
-            // optimistic add
             _orders.value = before + order
             _uiState.update { it.copy(orders = _orders.value, error = null) }
 
             try {
                 repository.insert(order)
-                // после успешной вставки — можно получить актуальный список из репозитория
                 val updated = repository.getAll()
                 _orders.value = updated
                 _uiState.update { it.copy(orders = updated, error = null) }
             } catch (e: Throwable) {
                 Log.e(TAG, "Error creating order, rollback", e)
-                // откат
                 _orders.value = before
                 _uiState.update { it.copy(orders = before, error = e.message) }
             }
@@ -173,16 +170,31 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    fun fetchTrackAndLog(trackId: Long, onResult: (TrackDto?) -> Unit) {
+    /**
+     * Загружает трек по id и обновляет trackState.
+     * Используй MapScreen, который подписан на trackState.
+     */
+    fun fetchTrack(trackId: Long) {
         viewModelScope.launch {
+            _trackState.value = TrackState.Loading
             try {
                 val track = apiService.getTrack(trackId)
-                Log.d(TAG, "Fetched track $trackId: $track")
-                onResult(track)
+                if (track == null) {
+                    _trackState.value = TrackState.Error("Трек не найден")
+                } else {
+                    _trackState.value = TrackState.Success(track)
+                }
             } catch (e: Throwable) {
                 Log.e(TAG, "Error fetching track $trackId", e)
-                onResult(null)
+                _trackState.value = TrackState.Error(e.message)
             }
         }
+    }
+
+    /**
+     * Вспомогательный метод: сброс состояния трека
+     */
+    fun clearTrackState() {
+        _trackState.value = TrackState.Idle
     }
 }
