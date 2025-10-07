@@ -9,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.tooling.preview.Preview
 import ru.forvid.o2devsstud.domain.model.Order
@@ -34,7 +33,7 @@ fun OrderDetailsScreen(
             title = { Text("Детали заявки") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -74,20 +73,22 @@ fun OrderDetailsScreen(
 
             // --- Кнопки статусов ---
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusButton("Взял в работу") { viewModel.changeStatus(order.id, OrderStatus.IN_WORK) }
-                StatusButton("В дороге к месту погрузки") { viewModel.changeStatus(order.id, OrderStatus.ON_WAY_TO_LOAD) }
-                StatusButton("Машина загружена") { viewModel.changeStatus(order.id, OrderStatus.LOADED) }
-                StatusButton("В дороге на место разгрузки") { viewModel.changeStatus(order.id, OrderStatus.ON_WAY_TO_UNLOAD) }
-                StatusButton("На стоянке") { viewModel.changeStatus(order.id, OrderStatus.PARKED) }
-                StatusButton("ТС прибыло на место разгрузки") { viewModel.changeStatus(order.id, OrderStatus.ARRIVED_UNLOAD) }
-                StatusButton("Машина разгружена") { viewModel.changeStatus(order.id, OrderStatus.UNLOADED) }
-                StatusButton("Забрал документы") { viewModel.changeStatus(order.id, OrderStatus.DOCUMENTS_TAKEN) }
+                // safe id handling
+                val id = order.id
+                StatusButton("Взял в работу") { id?.let { viewModel.changeStatus(it, OrderStatus.IN_WORK) } }
+                StatusButton("В дороге к месту погрузки") { id?.let { viewModel.changeStatus(it, OrderStatus.ON_WAY_TO_LOAD) } }
+                StatusButton("Машина загружена") { id?.let { viewModel.changeStatus(it, OrderStatus.LOADED) } }
+                StatusButton("В дороге на место разгрузки") { id?.let { viewModel.changeStatus(it, OrderStatus.ON_WAY_TO_UNLOAD) } }
+                StatusButton("На стоянке") { id?.let { viewModel.changeStatus(it, OrderStatus.PARKED) } }
+                StatusButton("ТС прибыло на место разгрузки") { id?.let { viewModel.changeStatus(it, OrderStatus.ARRIVED_UNLOAD) } }
+                StatusButton("Машина разгружена") { id?.let { viewModel.changeStatus(it, OrderStatus.UNLOADED) } }
+                StatusButton("Забрал документы") { id?.let { viewModel.changeStatus(it, OrderStatus.DOCUMENTS_TAKEN) } }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = { onConfirm(order.id) }, modifier = Modifier.weight(1f)) { Text("Подтвердить") }
+                Button(onClick = { order.id?.let { onConfirm(it) } }, modifier = Modifier.weight(1f)) { Text("Подтвердить") }
                 Button(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Назад") }
             }
         }
@@ -103,4 +104,3 @@ fun StatusButton(label: String, onClick: () -> Unit) {
         Text(label)
     }
 }
-

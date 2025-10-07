@@ -35,10 +35,13 @@ class MainActivity : ComponentActivity() {
                     val newRoute = if (isAuthorized) Screen.MainFlow.route else Screen.AuthFlow.route
                     if (navController.currentDestination?.route != newRoute) {
                         navController.navigate(newRoute) {
-                            popUpTo(0) { inclusive = true }
+                            // корректный popUpTo: очищаем backstack до корня и ставим launchSingleTop
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            launchSingleTop = true
                         }
                     }
                 }
+
 
                 Surface(modifier = Modifier.fillMaxSize()) {
                     RootNavigation(

@@ -12,6 +12,7 @@ import androidx.navigation.navArgument
 import ru.forvid.o2devsstud.ui.screens.*
 import ru.forvid.o2devsstud.ui.screens.orders.OrderDetailsScreen
 import ru.forvid.o2devsstud.ui.screens.ConfirmedScreen
+import androidx.navigation.NavBackStackEntry
 
 sealed class Screen(val route: String) {
     object AuthFlow : Screen("auth_flow")
@@ -34,10 +35,18 @@ sealed class Screen(val route: String) {
 @Composable
 fun RootNavigation(navController: NavHostController, startDestination: String) {
     NavHost(navController = navController, startDestination = startDestination) {
-        composable(Screen.AuthFlow.route) { LoginScreen() }
+        composable(Screen.AuthFlow.route) {
+            LoginScreen(onLoginSuccess = {
+                navController.navigate(Screen.MainFlow.route) {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                    launchSingleTop = true
+                }
+            })
+        }
         composable(Screen.MainFlow.route) { MainScreen() }
     }
 }
+
 
 @Composable
 fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValues) {
@@ -57,7 +66,7 @@ fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValu
         composable(
             route = Screen.OrderDetails.route,
             arguments = listOf(navArgument("orderId") { type = NavType.LongType })
-        ) { backStackEntry ->
+        ) { backStackEntry: NavBackStackEntry ->
             val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
             OrderDetailsScreen(
                 orderId = orderId,
