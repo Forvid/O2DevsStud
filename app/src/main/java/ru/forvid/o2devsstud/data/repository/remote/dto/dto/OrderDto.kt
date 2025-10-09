@@ -3,7 +3,7 @@ package ru.forvid.o2devsstud.data.repository.remote.dto.dto
 import com.google.gson.annotations.SerializedName
 
 data class OrderDto(
-    // id в mock может быть строкой ("4fca") или числом (order_id)
+    // id в mock может быть числом (order_id) или строкой (id)
     @SerializedName("order_id") val orderId: Long? = null,
     @SerializedName("id") val idStr: String? = null,
 
@@ -19,5 +19,8 @@ data class OrderDto(
     val status: String? = null,
 
     @SerializedName("estimated_days") val estimatedDays: Int? = null,
-    @SerializedName("estimatedDays") val estimatedDaysAlt: Int? = null
+    @SerializedName("estimatedDays") val estimatedDaysAlt: Int? = null,
+
+    @SerializedName("track_id")
+    val trackId: Long? = null
 )

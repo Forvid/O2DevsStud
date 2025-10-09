@@ -30,7 +30,6 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.model.*
-import kotlinx.coroutines.launch
 import ru.forvid.o2devsstud.data.remote.dto.TrackDto
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.TrackState
@@ -71,9 +70,8 @@ fun MapScreen(
     val mapView = rememberMapViewWithLifecycle(lifecycleOwner)
     val googleMapRef = remember { mutableStateOf<GoogleMap?>(null) }
     val polylineRef = remember { mutableStateOf<Polyline?>(null) }
-    val coroutineScope = rememberCoroutineScope()
 
-    // Fused location для центрирования / обновлений (не обязателен, но полезен)
+    // Fused location для центрирования / обновлений
     val fused = remember { LocationServices.getFusedLocationProviderClient(context) }
     var lastLocation by remember { mutableStateOf<Location?>(null) }
 
@@ -85,6 +83,7 @@ fun MapScreen(
         }
     }
 
+    // Запрос/отмена обновлений — и cleanup при уничтожении composable
     LaunchedEffect(locationGranted) {
         if (locationGranted) {
             try {
@@ -95,7 +94,13 @@ fun MapScreen(
                 fused.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
             } catch (_: Throwable) { /* ignore */ }
         } else {
-            fused.removeLocationUpdates(locationCallback)
+            try { fused.removeLocationUpdates(locationCallback) } catch (_: Throwable) {}
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            try { fused.removeLocationUpdates(locationCallback) } catch (_: Throwable) {}
         }
     }
 
@@ -104,7 +109,11 @@ fun MapScreen(
             title = { Text("Карта") },
             navigationIcon = {
                 if (onBack != null) {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        // очистим track state чтобы при повторном входе не оставались старые данные
+                        viewModel.clearTrackState()
+                        onBack()
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 }
@@ -119,7 +128,7 @@ fun MapScreen(
                     googleMapRef.value = g
                     g.uiSettings.isZoomControlsEnabled = true
 
-                    // включаем my-location только после проверки разрешения
+                    // вкл my-location только после проверки разрешения
                     if (locationGranted &&
                         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
                         == PackageManager.PERMISSION_GRANTED
@@ -188,7 +197,6 @@ fun MapScreen(
         }
     }
 
-    // при изменении состояния трека — если googleMap готов, перерисуем
     LaunchedEffect(googleMapRef.value, trackState) {
         val g = googleMapRef.value ?: return@LaunchedEffect
         when (val s = trackState) {

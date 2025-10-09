@@ -5,12 +5,10 @@ import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.domain.model.OrderStatus
 
 fun OrderDto.toDomain(): Order {
-    // Попробуем взять числовой orderId, иначе попытаться распарсить строковый idStr в Long,
+    // Попробую взять числовой orderId, иначе попытаться распарсить строковый idStr в Long,
     // иначе fallback на System.currentTimeMillis()
     val idLong: Long = this.orderId
         ?: this.idStr?.let { str ->
-            // если строка содержит числа — может быть hex или просто digits
-            // пробуем сначала toLongOrNull(), потом parse hex, иначе генерим
             val n = str.toLongOrNull()
             if (n != null) n
             else {
@@ -26,8 +24,15 @@ fun OrderDto.toDomain(): Order {
     val fromVal = this.fromAddress ?: this.from ?: ""
     val toVal = this.toAddress ?: this.to ?: ""
     val reqNum = this.requestNumber ?: this.requestNumberAlt ?: ""
-    val statusVal = try { OrderStatus.valueOf(this.status ?: "PLACED") } catch (_: Throwable) { OrderStatus.PLACED }
     val days = this.estimatedDays ?: this.estimatedDaysAlt ?: 1
+
+    // Безопасное преобразование статуса (если строка не совпадает — ставим PLACED)
+    val statusVal = try {
+        if (this.status.isNullOrBlank()) OrderStatus.PLACED
+        else OrderStatus.valueOf(this.status)
+    } catch (_: Throwable) {
+        OrderStatus.PLACED
+    }
 
     return Order(
         id = idLong,
@@ -35,7 +40,7 @@ fun OrderDto.toDomain(): Order {
         to = toVal,
         requestNumber = reqNum,
         status = statusVal,
-        estimatedDays = days
+        estimatedDays = days,
+        trackId = this.trackId
     )
 }
-

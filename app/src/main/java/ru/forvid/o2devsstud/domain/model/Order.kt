@@ -6,5 +6,6 @@ data class Order(
     val to: String,
     val requestNumber: String,
     val status: OrderStatus,
-    val estimatedDays: Int
+    val estimatedDays: Int,
+    val trackId: Long? = null
 )

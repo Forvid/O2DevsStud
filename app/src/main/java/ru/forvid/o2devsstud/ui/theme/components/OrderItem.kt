@@ -71,9 +71,9 @@ fun OrderItem(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Показать на карте (если трек есть/будет по id)
+            // Показать на карте (используем trackId если есть, иначе order.id)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Button(onClick = { onShowMap(order.id) }) {
+                Button(onClick = { onShowMap(order.trackId ?: order.id) }) {
                     Text("Показать на карте")
                 }
             }

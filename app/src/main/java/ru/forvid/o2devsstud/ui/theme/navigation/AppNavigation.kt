@@ -4,6 +4,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -15,7 +17,10 @@ import androidx.navigation.navArgument
 import ru.forvid.o2devsstud.ui.screens.*
 import ru.forvid.o2devsstud.ui.screens.orders.OrderDetailsScreen
 import ru.forvid.o2devsstud.ui.screens.ConfirmedScreen
+import ru.forvid.o2devsstud.ui.viewmodel.HistoryViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
+import ru.forvid.o2devsstud.ui.viewmodel.ProfileViewModel
+
 
 sealed class Screen(val route: String) {
     object AuthFlow : Screen("auth_flow")
@@ -30,7 +35,6 @@ sealed class Screen(val route: String) {
     }
     object DriverMap : Screen("driver_map")
     object Map : Screen("map")
-    // dynamic map route is "map/{trackId}" — not part of Screen sealed for convenience
     object History : Screen("history")
     object Profile : Screen("profile")
     object ContactDevelopers : Screen("contact_developers")
@@ -62,12 +66,13 @@ fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValu
         modifier = Modifier.padding(paddingValues)
     ) {
         composable(Screen.Orders.route) {
-            // activity-scoped viewModel
             val activity = LocalContext.current as ComponentActivity
             val sharedOrdersVm: OrdersViewModel = hiltViewModel(activity)
 
             OrdersScreen(
-                onOpenOrder = { orderId -> navController.navigate(Screen.OrderDetails.createRoute(orderId)) },
+                onOpenOrder = { orderId ->
+                    navController.navigate(Screen.OrderDetails.createRoute(orderId))
+                },
                 onCreateOrder = { navController.navigate(Screen.CreateOrder.route) },
                 onShowMap = { trackId -> navController.navigate("map/$trackId") },
                 viewModel = sharedOrdersVm
@@ -116,23 +121,23 @@ fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValu
             })
         }
 
-        // Driver map (if you have a separate driver map screen)
         composable(Screen.DriverMap.route) {
             DriverMapScreen(onBack = { navController.popBackStack() })
         }
 
-        // Simple map route (no track id) - show empty map or allow user interactions
         composable(Screen.Map.route) {
             val activity = LocalContext.current as ComponentActivity
             val sharedOrdersVm: OrdersViewModel = hiltViewModel(activity)
             MapScreen(
                 trackIdToShow = null,
                 viewModel = sharedOrdersVm,
-                onBack = { navController.popBackStack() }
+                onBack = {
+                    sharedOrdersVm.clearTrackState()
+                    navController.popBackStack()
+                }
             )
         }
 
-        // Dynamic map route for specific track: map/{trackId}
         composable(
             route = "map/{trackId}",
             arguments = listOf(navArgument("trackId") { type = NavType.LongType })
@@ -147,8 +152,44 @@ fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValu
             )
         }
 
-        composable(Screen.History.route) { StubScreen(name = "История поставок") }
-        composable(Screen.Profile.route) { StubScreen(name = "Мой профиль") }
-        composable(Screen.ContactDevelopers.route) { StubScreen(name = "Связаться с разработчиками") }
+        // Profile screen (use ProfileViewModel)
+        composable(Screen.Profile.route) {
+            val activity = LocalContext.current as ComponentActivity
+            val profileVm: ProfileViewModel = hiltViewModel(activity)
+            val state by profileVm.uiState.collectAsState()
+
+            ProfileScreen(
+                profile = state.profile, // передаём доменную модель DriverProfile (или null)
+                onEdit = { /* nav to edit screen */ },
+                onLogout = {
+                    profileVm.logout()
+                    navController.navigate(Screen.AuthFlow.route) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // History screen (use HistoryViewModel)
+        composable(Screen.History.route) {
+            val activity = LocalContext.current as ComponentActivity
+            val historyVm: HistoryViewModel = hiltViewModel(activity)
+            val state by historyVm.uiState.collectAsState()
+
+            HistoryScreen(
+                items = state.items,
+                onOpen = { id -> navController.navigate(Screen.OrderDetails.createRoute(id)) },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.ContactDevelopers.route) {
+            ContactDevelopersScreen(
+                onSendMessage = { /* send via SupportViewModel or API */ },
+                phoneToCall = "+7..." /* configure */,
+                onBack = { navController.popBackStack() }
+            )
+        }
     }
 }
