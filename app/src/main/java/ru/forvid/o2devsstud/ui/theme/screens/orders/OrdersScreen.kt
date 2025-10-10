@@ -11,7 +11,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.ui.components.OrderItem
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
 
@@ -22,7 +21,7 @@ fun OrdersScreen(
     onCreateOrder: () -> Unit,
     onShowMap: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OrdersViewModel // passed from NavGraph
+    viewModel: OrdersViewModel
 ) {
     val orders by viewModel.orders.collectAsState()
 
@@ -40,23 +39,14 @@ fun OrdersScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(vertical = 8.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
         ) {
-            items(orders) { order ->
+            items(orders, key = { it.id }) { order ->
                 OrderItem(
                     order = order,
-                    onChangeStatus = { id, status ->
-                        viewModel.changeStatus(id, status)
-                    },
-                    onPickDocuments = { id ->
-                        onOpenOrder(id)
-                    },
-                    onShowMap = { trackId ->
-                        onShowMap(trackId)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
+                    onOpenOrder = { id -> onOpenOrder(id) },
+                    onShowMap = { trackId -> onShowMap(trackId) },
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }

@@ -3,17 +3,13 @@ package ru.forvid.o2devsstud.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.Icons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,16 +23,13 @@ fun ContactDevelopersScreen(
     var text by remember { mutableStateOf("") }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        CenterAlignedTopAppBar(
-            title = { Text("Связаться с разработчиками") },
-            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        )
+        TopAppBar(title = { Text("Связаться с разработчиками") }, navigationIcon = {
+            if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
+        })
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextField(value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Сообщение") })
+        OutlinedTextField(value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Сообщение") })
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -31,19 +31,24 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val isAuthorized = authState.isAuthorized
 
+                // Навигируем при изменении статуса авторизации
                 LaunchedEffect(isAuthorized) {
-                    val newRoute = if (isAuthorized) Screen.MainFlow.route else Screen.AuthFlow.route
-                    if (navController.currentDestination?.route != newRoute) {
-                        navController.navigate(newRoute) {
-                            // корректный popUpTo: очищаем backstack до корня и ставим launchSingleTop
-                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                            launchSingleTop = true
+                    val target = if (isAuthorized) Screen.MainFlow.route else Screen.AuthFlow.route
+                    // безопасно навигируем (popUpTo корня)
+                    try {
+                        if (navController.currentDestination?.route != target) {
+                            navController.navigate(target) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                                launchSingleTop = true
+                            }
                         }
+                    } catch (_: Throwable) {
+                        // ignore: protection against graph not ready — NavHost сам установит стартовую точку
                     }
                 }
 
-
                 Surface(modifier = Modifier.fillMaxSize()) {
+                    // стартовая точка выбор в зависимости от авторизации — это помогает сразу нарисовать нужный экран
                     RootNavigation(
                         navController = navController,
                         startDestination = if (isAuthorized) Screen.MainFlow.route else Screen.AuthFlow.route

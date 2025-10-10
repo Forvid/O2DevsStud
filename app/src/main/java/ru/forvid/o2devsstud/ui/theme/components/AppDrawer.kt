@@ -1,73 +1,89 @@
 package ru.forvid.o2devsstud.ui.components
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import ru.forvid.o2devsstud.ui.navigation.Screen
+import ru.forvid.o2devsstud.domain.model.DriverProfile
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.rememberAsyncImagePainter
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.ContactPhone
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Map
 
-data class DrawerMenuItem(val screen: Screen, val title: String, val icon: ImageVector)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDrawer(
     currentRoute: String?,
     onNavigate: (String) -> Unit,
     onSignOut: () -> Unit,
-    closeDrawer: () -> Unit
+    closeDrawer: () -> Unit,
+    profile: DriverProfile? = null
 ) {
-    val menuItems = listOf(
-        DrawerMenuItem(Screen.Orders, "Текущие поставки", Icons.Filled.List),
-        DrawerMenuItem(Screen.History, "История поставок", Icons.Filled.History),
-        DrawerMenuItem(Screen.Profile, "Мой профиль", Icons.Filled.AccountCircle),
-        DrawerMenuItem(Screen.ContactDevelopers, "Связаться с разработчиками", Icons.Filled.Call)
-    )
-
-    ModalDrawerSheet {
-        Text(
-            "O2RUS",
-            modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.titleLarge
-        )
-        HorizontalDivider()
-
-        Column(Modifier.padding(8.dp)) {
-            menuItems.forEach { item ->
-                NavigationDrawerItem(
-                    label = { Text(item.title) },
-                    icon = { Icon(item.icon, contentDescription = null) },
-                    selected = currentRoute == item.screen.route,
-                    onClick = {
-                        onNavigate(item.screen.route)
-                        closeDrawer()
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+    // обёртка – у ModalDrawerSheet уже есть background, но на уровне содержимого удобно явно задать padding
+    Column(modifier = Modifier.fillMaxSize()) {
+        // header
+        Box(modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // avatar (можно заменить на локальный ресурс, если нет)
+                val painter = rememberAsyncImagePainter(profile?.avatarUrl)
+                Image(
+                    painter = painter,
+                    contentDescription = "avatar",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(text = profile?.fullName ?: "Иванов Иван", style = MaterialTheme.typography.titleMedium)
+                    Text(text = profile?.column ?: "Колонна 1", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
 
-        HorizontalDivider()
+        Divider()
 
+        // nav items
+        DrawerItem(label = "Текущие поставки", onClick = { onNavigate("orders"); closeDrawer() })
+        DrawerItem(label = "Карта", onClick = { onNavigate("map"); closeDrawer() }, icon = { Icon(Icons.Default.Map, contentDescription = null) })
+        DrawerItem(label = "История", onClick = { onNavigate("history"); closeDrawer() }, icon = { Icon(Icons.Default.History, contentDescription = null) })
+        DrawerItem(label = "Связаться с разработчиками", onClick = { onNavigate("contact_developers"); closeDrawer()}, icon = { Icon(Icons.Default.ContactPhone, contentDescription = null) })
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Divider()
+
+        // sign out
         NavigationDrawerItem(
-            label = { Text("Выход") },
-            icon = { Icon(Icons.Filled.ExitToApp, contentDescription = null) },
+            label = { Text("Выйти") },
             selected = false,
-            onClick = { onSignOut(); closeDrawer() },
-            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            onClick = { onSignOut() },
+            icon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
+            modifier = Modifier.padding(8.dp)
         )
     }
+}
+
+@Composable
+private fun DrawerItem(label: String, onClick: () -> Unit, icon: (@Composable ()->Unit)? = null) {
+    NavigationDrawerItem(
+        label = { Text(label) },
+        selected = false,
+        onClick = onClick,
+        icon = if (icon != null) { { icon() } } else null,
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+    )
 }

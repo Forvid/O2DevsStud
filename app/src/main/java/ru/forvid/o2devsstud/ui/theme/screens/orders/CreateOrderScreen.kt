@@ -2,18 +2,8 @@ package ru.forvid.o2devsstud.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,18 +11,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateOrderScreen(
     onBack: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: OrdersViewModel // теперь обязателен и передаётся из NavGraph
+    viewModel: OrdersViewModel,
+    modifier: Modifier = Modifier
 ) {
-    var from by rememberSaveable { mutableStateOf("") }
-    var to by rememberSaveable { mutableStateOf("") }
-    var requestNumber by rememberSaveable { mutableStateOf("") }
-    var estimatedDaysText by rememberSaveable { mutableStateOf("") }
+    var from by remember { mutableStateOf("") }
+    var to by remember { mutableStateOf("") }
+    var requestNumber by remember { mutableStateOf("") }
+    var estimatedDaysText by remember { mutableStateOf("") }
 
     val isFormValid by remember {
         derivedStateOf {
@@ -42,87 +33,33 @@ fun CreateOrderScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("Создать заявку") },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Назад")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        )
+        TopAppBar(title = { Text("Создать заявку") }, navigationIcon = {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Назад") }
+        })
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top
-        ) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Top) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    OutlinedTextField(
-                        value = from,
-                        onValueChange = { from = it },
-                        label = { Text("Откуда") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = to,
-                        onValueChange = { to = it },
-                        label = { Text("Куда") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = requestNumber,
-                        onValueChange = { requestNumber = it },
-                        label = { Text("Номер заявки") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = estimatedDaysText,
-                        onValueChange = { estimatedDaysText = it.filter { ch -> ch.isDigit() } },
-                        label = { Text("Расчетное время (дни)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done
-                        )
-                    )
+                    OutlinedTextField(value = from, onValueChange = { from = it }, label = { Text("Откуда") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next))
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(value = to, onValueChange = { to = it }, label = { Text("Куда") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next))
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(value = requestNumber, onValueChange = { requestNumber = it }, label = { Text("Номер заявки") }, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(value = estimatedDaysText, onValueChange = { estimatedDaysText = it.filter { ch -> ch.isDigit() } }, label = { Text("Расчетное время (дни)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done))
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = {
-                        val days = estimatedDaysText.toIntOrNull() ?: 1
-                        viewModel.createOrder(
-                            from = from.trim(),
-                            to = to.trim(),
-                            requestNumber = requestNumber.trim(),
-                            estimatedDays = days
-                        )
-                        onBack()
-                    },
-                    enabled = isFormValid,
-                    modifier = Modifier.weight(1f)
-                ) {
+                Button(onClick = {
+                    viewModel.createOrder(from.trim(), to.trim(), requestNumber.trim(), estimatedDaysText.toIntOrNull() ?: 1)
+                    onBack()
+                }, enabled = isFormValid, modifier = Modifier.weight(1f)) {
                     Text("Сохранить")
                 }
-
-                Button(
-                    onClick = onBack,
-                    modifier = Modifier.weight(1f)
-                ) {
+                OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) {
                     Text("Отмена")
                 }
             }

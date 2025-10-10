@@ -6,7 +6,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
@@ -26,18 +25,21 @@ fun MainScreen(authViewModel: AuthViewModel = hiltViewModel()) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            AppDrawer(
-                currentRoute = currentRoute,
-                onNavigate = { route ->
-                    mainNavController.navigate(route) {
-                        // Эта функция-расширение исправляет ошибку 'can't be called in this context'
-                        this.launchSingleTop = true
-                        popUpTo(mainNavController.graph.startDestinationId)
-                    }
-                },
-                onSignOut = { authViewModel.onSignOut() },
-                closeDrawer = { scope.launch { drawerState.close() } }
-            )
+            // Важно: используется ModalDrawerSheet чтобы drawer имел непрозрачный фон и padding
+            ModalDrawerSheet {
+                AppDrawer(
+                    currentRoute = currentRoute,
+                    onNavigate = { route ->
+                        mainNavController.navigate(route) {
+                            launchSingleTop = true
+                            popUpTo(mainNavController.graph.startDestinationId)
+                        }
+                        scope.launch { drawerState.close() }
+                    },
+                    onSignOut = { authViewModel.onSignOut() },
+                    closeDrawer = { scope.launch { drawerState.close() } }
+                )
+            }
         }
     ) {
         Scaffold(

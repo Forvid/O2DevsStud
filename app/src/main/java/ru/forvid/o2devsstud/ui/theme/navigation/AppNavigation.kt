@@ -152,14 +152,14 @@ fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValu
             )
         }
 
-        // Profile screen (use ProfileViewModel)
         composable(Screen.Profile.route) {
             val activity = LocalContext.current as ComponentActivity
             val profileVm: ProfileViewModel = hiltViewModel(activity)
             val state by profileVm.uiState.collectAsState()
 
+            // Позиционный вызов (без использования имени параметра 'profile')
             ProfileScreen(
-                profile = state.profile, // передаём доменную модель DriverProfile (или null)
+                state.profile, // 1-й параметр — profile
                 onEdit = { /* nav to edit screen */ },
                 onLogout = {
                     profileVm.logout()
@@ -171,7 +171,6 @@ fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValu
             )
         }
 
-        // History screen (use HistoryViewModel)
         composable(Screen.History.route) {
             val activity = LocalContext.current as ComponentActivity
             val historyVm: HistoryViewModel = hiltViewModel(activity)

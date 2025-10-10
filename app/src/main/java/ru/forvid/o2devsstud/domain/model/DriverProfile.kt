@@ -7,5 +7,6 @@ data class DriverProfile(
     val phoneDriver: String,
     val phoneColumn: String,
     val phoneLogist: String,
-    val email: String? = null
+    val email: String? = null,
+    val avatarUrl: String? = null
 )
