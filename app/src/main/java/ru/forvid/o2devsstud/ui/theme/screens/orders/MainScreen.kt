@@ -4,6 +4,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -11,7 +13,9 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import ru.forvid.o2devsstud.ui.components.AppDrawer
 import ru.forvid.o2devsstud.ui.navigation.MainAppNavGraph
+import ru.forvid.o2devsstud.ui.navigation.Screen
 import ru.forvid.o2devsstud.ui.viewmodel.AuthViewModel
+import ru.forvid.o2devsstud.ui.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,22 +26,37 @@ fun MainScreen(authViewModel: AuthViewModel = hiltViewModel()) {
     val currentBackStackEntry = mainNavController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry.value?.destination?.route
 
+    // Activity-scoped ProfileViewModel to show avatar/name in drawer header
+    val profileVm: ProfileViewModel = hiltViewModel()
+    val profileState by profileVm.uiState.collectAsState()
+    val profile = profileState.profile
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            // Важно: используется ModalDrawerSheet чтобы drawer имел непрозрачный фон и padding
+            // ModalDrawerSheet гарантирует корректный (непрозрачный) фон для drawer
             ModalDrawerSheet {
                 AppDrawer(
                     currentRoute = currentRoute,
                     onNavigate = { route ->
                         mainNavController.navigate(route) {
-                            launchSingleTop = true
+                            this.launchSingleTop = true
                             popUpTo(mainNavController.graph.startDestinationId)
                         }
-                        scope.launch { drawerState.close() }
                     },
                     onSignOut = { authViewModel.onSignOut() },
-                    closeDrawer = { scope.launch { drawerState.close() } }
+                    closeDrawer = { scope.launch { drawerState.close() } },
+                    profile = profile,
+                    // profile header click: navigate to Profile screen and close drawer
+                    onProfileClick = {
+                        scope.launch {
+                            drawerState.close()
+                            mainNavController.navigate(Screen.Profile.route) {
+                                this.launchSingleTop = true
+                                popUpTo(mainNavController.graph.startDestinationId)
+                            }
+                        }
+                    }
                 )
             }
         }
