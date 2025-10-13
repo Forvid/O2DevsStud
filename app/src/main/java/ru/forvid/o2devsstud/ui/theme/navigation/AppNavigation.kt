@@ -1,30 +1,29 @@
-package ru.forvid.o2devsstud.ui.navigation
+package ru.forvid.o2devsstud.ui.theme.navigation
 
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
+import androidx.navigation.*
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
 import ru.forvid.o2devsstud.ui.screens.*
-import ru.forvid.o2devsstud.ui.screens.orders.OrderDetailsScreen
-import ru.forvid.o2devsstud.ui.screens.ConfirmedScreen
+import ru.forvid.o2devsstud.ui.theme.screens.orders.OrderDetailsScreen
+import ru.forvid.o2devsstud.ui.theme.screens.orders.OrdersScreen
+import ru.forvid.o2devsstud.ui.theme.viewmodel.AuthViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.HistoryViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.ProfileViewModel
-
+import ru.forvid.o2devsstud.ui.theme.screens.orders.MainScreen
 
 sealed class Screen(val route: String) {
     object AuthFlow : Screen("auth_flow")
     object MainFlow : Screen("main_flow")
+    object Home : Screen("home")
     object Orders : Screen("orders")
     object CreateOrder : Screen("create_order")
     object OrderDetails : Screen("order_details/{orderId}") {
@@ -33,8 +32,10 @@ sealed class Screen(val route: String) {
     object Confirmed : Screen("confirmed/{orderId}") {
         fun createRoute(orderId: Long) = "confirmed/$orderId"
     }
-    object DriverMap : Screen("driver_map")
     object Map : Screen("map")
+    object MapWithTrack : Screen("map/{trackId}") {
+        fun createRoute(trackId: Long) = "map/$trackId"
+    }
     object History : Screen("history")
     object Profile : Screen("profile")
     object ContactDevelopers : Screen("contact_developers")
@@ -42,151 +43,107 @@ sealed class Screen(val route: String) {
 
 @Composable
 fun RootNavigation(navController: NavHostController, startDestination: String) {
-    NavHost(navController = navController, startDestination = startDestination) {
-        composable(Screen.AuthFlow.route) {
-            LoginScreen(onLoginSuccess = {
-                navController.navigate(Screen.MainFlow.route) {
-                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                    launchSingleTop = true
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val authState by authViewModel.authState.collectAsState()
+
+    LaunchedEffect(authState.isAuthorized) {
+        if (authState.isAuthorized) {
+            navController.navigate(Screen.MainFlow.route) {
+                popUpTo(Screen.AuthFlow.route) {
+                    inclusive = true
                 }
-            })
+            }
         }
-        composable(Screen.MainFlow.route) { MainScreen() }
+    }
+
+    NavHost(navController = navController, startDestination = startDestination) {
+        composable(Screen.AuthFlow.route) { LoginScreen(viewModel = authViewModel) }
+        // Передаем AuthViewModel в MainScreen
+        composable(Screen.MainFlow.route) { MainScreen(authViewModel = authViewModel) }
     }
 }
 
-/**
- * MainAppNavGraph — activity-scoped OrdersViewModel пробрасывается в экраны, работающие с заказами.
- */
 @Composable
-fun MainAppNavGraph(navController: NavHostController, paddingValues: PaddingValues) {
+fun MainAppNavGraph(
+    navController: NavHostController,
+    paddingValues: PaddingValues,
+    ordersViewModel: OrdersViewModel,
+    profileViewModel: ProfileViewModel
+) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Orders.route,
+        startDestination = Screen.Home.route,
         modifier = Modifier.padding(paddingValues)
     ) {
+        composable(Screen.Home.route) {
+            HomeScreen(
+                viewModel = ordersViewModel,
+                onOrderClick = { orderId -> navController.navigate(Screen.OrderDetails.createRoute(orderId)) }
+            )
+        }
         composable(Screen.Orders.route) {
-            val activity = LocalContext.current as ComponentActivity
-            val sharedOrdersVm: OrdersViewModel = hiltViewModel(activity)
-
             OrdersScreen(
-                onOpenOrder = { orderId ->
-                    navController.navigate(Screen.OrderDetails.createRoute(orderId))
-                },
+                onOpenOrder = { orderId -> navController.navigate(Screen.OrderDetails.createRoute(orderId)) },
                 onCreateOrder = { navController.navigate(Screen.CreateOrder.route) },
-                onShowMap = { trackId -> navController.navigate("map/$trackId") },
-                viewModel = sharedOrdersVm
+                onShowMap = { trackId -> navController.navigate(Screen.MapWithTrack.createRoute(trackId)) },
+                viewModel = ordersViewModel
             )
         }
-
         composable(Screen.CreateOrder.route) {
-            val activity = LocalContext.current as ComponentActivity
-            val sharedOrdersVm: OrdersViewModel = hiltViewModel(activity)
-
-            CreateOrderScreen(
-                onBack = { navController.popBackStack() },
-                viewModel = sharedOrdersVm
-            )
+            CreateOrderScreen(onBack = { navController.popBackStack() }, viewModel = ordersViewModel)
         }
-
         composable(
             route = Screen.OrderDetails.route,
             arguments = listOf(navArgument("orderId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val activity = LocalContext.current as ComponentActivity
-            val sharedOrdersVm: OrdersViewModel = hiltViewModel(activity)
-
-            val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
+        ) {
             OrderDetailsScreen(
-                orderId = orderId,
+                orderId = it.arguments?.getLong("orderId") ?: 0L,
                 onBack = { navController.popBackStack() },
                 onConfirm = { confirmedOrderId ->
                     navController.navigate(Screen.Confirmed.createRoute(confirmedOrderId)) {
                         popUpTo(Screen.OrderDetails.route) { inclusive = true }
                     }
                 },
-                viewModel = sharedOrdersVm
+                onShowTrackOnMap = { trackId -> navController.navigate(Screen.MapWithTrack.createRoute(trackId)) },
+                viewModel = ordersViewModel
             )
         }
-
         composable(
             route = Screen.Confirmed.route,
             arguments = listOf(navArgument("orderId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
-            ConfirmedScreen(orderId = orderId, onBack = {
-                navController.navigate(Screen.Orders.route) {
-                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                }
+        ) {
+            ConfirmedScreen(orderId = it.arguments?.getLong("orderId") ?: 0L, onBack = {
+                navController.navigate(Screen.Orders.route) { popUpTo(navController.graph.startDestinationId) { inclusive = true } }
             })
         }
-
-        composable(Screen.DriverMap.route) {
-            DriverMapScreen(onBack = { navController.popBackStack() })
-        }
-
         composable(Screen.Map.route) {
-            val activity = LocalContext.current as ComponentActivity
-            val sharedOrdersVm: OrdersViewModel = hiltViewModel(activity)
-            MapScreen(
-                trackIdToShow = null,
-                viewModel = sharedOrdersVm,
-                onBack = {
-                    sharedOrdersVm.clearTrackState()
-                    navController.popBackStack()
-                }
-            )
+            MapScreen(viewModel = ordersViewModel, onBack = { navController.popBackStack() })
         }
-
         composable(
-            route = "map/{trackId}",
+            route = Screen.MapWithTrack.route,
             arguments = listOf(navArgument("trackId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val activity = LocalContext.current as ComponentActivity
-            val sharedOrdersVm: OrdersViewModel = hiltViewModel(activity)
-            val trackId = backStackEntry.arguments?.getLong("trackId")
-            MapScreen(
-                trackIdToShow = trackId,
-                viewModel = sharedOrdersVm,
-                onBack = { navController.popBackStack() }
-            )
+        ) {
+            MapScreen(trackIdToShow = it.arguments?.getLong("trackId"), viewModel = ordersViewModel, onBack = { navController.popBackStack() })
         }
-
         composable(Screen.Profile.route) {
-            val activity = LocalContext.current as ComponentActivity
-            val profileVm: ProfileViewModel = hiltViewModel(activity)
-            val state by profileVm.uiState.collectAsState()
-
-            // Позиционный вызов (без использования имени параметра 'profile')
+            // Используем переданную ViewModel
             ProfileScreen(
-                state.profile, // 1-й параметр — profile
-                onEdit = { /* nav to edit screen */ },
-                onLogout = {
-                    profileVm.logout()
-                    navController.navigate(Screen.AuthFlow.route) {
-                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                    }
-                },
+                profileViewModel = profileViewModel,
                 onBack = { navController.popBackStack() }
             )
         }
-
         composable(Screen.History.route) {
-            val activity = LocalContext.current as ComponentActivity
-            val historyVm: HistoryViewModel = hiltViewModel(activity)
-            val state by historyVm.uiState.collectAsState()
-
+            val historyVm: HistoryViewModel = hiltViewModel()
             HistoryScreen(
-                items = state.items,
+                viewModel = historyVm,
                 onOpen = { id -> navController.navigate(Screen.OrderDetails.createRoute(id)) },
                 onBack = { navController.popBackStack() }
             )
         }
-
         composable(Screen.ContactDevelopers.route) {
             ContactDevelopersScreen(
-                onSendMessage = { /* send via SupportViewModel or API */ },
-                phoneToCall = "+7..." /* configure */,
+                onSendMessage = { /* TODO */ },
+                phoneToCall = "+70000000000",
                 onBack = { navController.popBackStack() }
             )
         }

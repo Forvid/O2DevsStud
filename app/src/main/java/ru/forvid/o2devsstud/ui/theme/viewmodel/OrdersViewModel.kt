@@ -23,9 +23,6 @@ data class OrdersUiState(
     val error: String? = null
 )
 
-/**
- * Состояние загрузки трека для MapScreen.
- */
 sealed class TrackState {
     object Idle : TrackState()
     object Loading : TrackState()
@@ -39,15 +36,16 @@ class OrdersViewModel @Inject constructor(
     private val apiService: ApiService
 ) : ViewModel() {
 
-    private val _orders = MutableStateFlow<List<Order>>(emptyList())
-    val orders: StateFlow<List<Order>> = _orders.asStateFlow()
-
     private val _uiState = MutableStateFlow(OrdersUiState())
     val uiState: StateFlow<OrdersUiState> = _uiState.asStateFlow()
 
-    // Track loading state
     private val _trackState = MutableStateFlow<TrackState>(TrackState.Idle)
     val trackState: StateFlow<TrackState> = _trackState.asStateFlow()
+
+    // --- НОВОЕ ПОЛЕ ---
+    // ID трека для активного заказа, который нужно показать на главном экране (HomeScreen)
+    private val _activeOrderTrackId = MutableStateFlow<Long?>(null)
+    val activeOrderTrackId: StateFlow<Long?> = _activeOrderTrackId.asStateFlow()
 
     init {
         loadLocal()
@@ -58,7 +56,6 @@ class OrdersViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val local = repository.getAll()
-                _orders.value = local
                 _uiState.update { it.copy(orders = local, error = null) }
             } catch (e: Throwable) {
                 Log.e(TAG, "loadLocal error", e)
@@ -73,117 +70,61 @@ class OrdersViewModel @Inject constructor(
             try {
                 val remote: List<OrderDto> = apiService.getOrders()
                 Log.d(TAG, "Fetched ${remote.size} orders from server")
-
                 for (dto in remote) {
-                    val domain = dto.toDomain()
-                    try {
-                        repository.insert(domain)
-                    } catch (e: Throwable) {
-                        Log.w(TAG, "insert error for ${domain.id}: ${e.message}")
-                    }
+                    repository.insert(dto.toDomain())
                 }
-
                 val updated = repository.getAll()
-                _orders.value = updated
-                _uiState.update { it.copy(orders = updated, error = null) }
+                _uiState.update { it.copy(orders = updated, isLoading = false, error = null) }
             } catch (e: Throwable) {
                 Log.e(TAG, "Error fetching orders from server", e)
-                _uiState.update { it.copy(error = e.message ?: "Ошибка сети") }
-            } finally {
-                _uiState.update { it.copy(isLoading = false) }
+                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Ошибка сети") }
             }
         }
-    }
-
-    fun load() {
-        loadLocal()
     }
 
     fun changeStatus(orderId: Long, status: OrderStatus) {
         viewModelScope.launch {
             try {
-                val current = _orders.value
-                val idx = current.indexOfFirst { it.id == orderId }
-                if (idx == -1) {
-                    Log.w(TAG, "changeStatus: order $orderId not found locally")
-                    return@launch
-                }
-
-                val mutable = current.toMutableList()
-                val old = mutable[idx]
-                mutable[idx] = old.copy(status = status)
-                _orders.value = mutable
-                _uiState.update { it.copy(orders = mutable, error = null) }
-
+                // Обновление UI
+                val currentOrders = _uiState.value.orders
+                val updatedOrders = currentOrders.map { if (it.id == orderId) it.copy(status = status) else it }
+                _uiState.update { it.copy(orders = updatedOrders) }
+                // Обновление в репозитории
                 repository.updateStatus(orderId, status)
             } catch (e: Throwable) {
                 Log.e(TAG, "Error updating status, rolling back", e)
-                try {
-                    val refreshed = repository.getAll()
-                    _orders.value = refreshed
-                    _uiState.update { it.copy(orders = refreshed, error = e.message) }
-                } catch (re: Throwable) {
-                    Log.e(TAG, "Failed to refresh after status update error", re)
-                    _uiState.update { it.copy(error = e.message ?: "Ошибка при смене статуса") }
-                }
+                // В случае ошибки откатывается к данным из репозитория
+                loadLocal()
             }
         }
     }
 
     fun createOrder(from: String, to: String, requestNumber: String, estimatedDays: Int) {
         viewModelScope.launch {
-            val id = System.currentTimeMillis()
             val order = Order(
-                id = id,
+                id = System.currentTimeMillis(),
                 from = from,
                 to = to,
                 requestNumber = requestNumber,
                 status = OrderStatus.PLACED,
                 estimatedDays = estimatedDays
             )
-
-            val before = _orders.value
-            _orders.value = before + order
-            _uiState.update { it.copy(orders = _orders.value, error = null) }
-
             try {
                 repository.insert(order)
-                val updated = repository.getAll()
-                _orders.value = updated
-                _uiState.update { it.copy(orders = updated, error = null) }
+                loadLocal() // Перезагрузжает все заказы из БД для консистентности
             } catch (e: Throwable) {
-                Log.e(TAG, "Error creating order, rollback", e)
-                _orders.value = before
-                _uiState.update { it.copy(orders = before, error = e.message) }
+                Log.e(TAG, "Error creating order", e)
+                _uiState.update { it.copy(error = e.message) }
             }
         }
     }
 
-    fun getOrder(orderId: Long, onResult: (Order?) -> Unit) {
-        viewModelScope.launch {
-            try {
-                onResult(repository.getById(orderId))
-            } catch (e: Throwable) {
-                Log.e(TAG, "getOrder error", e)
-                onResult(null)
-            }
-        }
-    }
-
-    /**
-     * Загружает трек по id и обновляет trackState.
-     * Используй MapScreen, который подписан на trackState.
-     */
     fun fetchTrack(trackId: Long) {
         viewModelScope.launch {
             _trackState.value = TrackState.Loading
             try {
                 val track = apiService.getTrack(trackId)
-                if (track == null) {
-                    _trackState.value = TrackState.Error("Трек не найден")
-                } else {
-                    _trackState.value = TrackState.Success(track)
-                }
+                _trackState.value = if (track != null) TrackState.Success(track) else TrackState.Error("Трек не найден")
             } catch (e: Throwable) {
                 Log.e(TAG, "Error fetching track $trackId", e)
                 _trackState.value = TrackState.Error(e.message)
@@ -191,10 +132,16 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Вспомогательный метод: сброс состояния трека
-     */
     fun clearTrackState() {
         _trackState.value = TrackState.Idle
+    }
+
+    // --- НОВЫЙ МЕТОД ---
+    /**
+     * Устанавливает ID трека, который должен быть показан на главном экране.
+     * Если передать null, убирает трек с главного экрана.
+     */
+    fun setActiveTrack(trackId: Long?) {
+        _activeOrderTrackId.value = trackId
     }
 }

@@ -14,6 +14,8 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -21,7 +23,6 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -39,8 +40,8 @@ import ru.forvid.o2devsstud.ui.viewmodel.TrackState
 @Composable
 fun MapScreen(
     modifier: Modifier = Modifier,
+    viewModel: OrdersViewModel,
     trackIdToShow: Long? = null,
-    viewModel: OrdersViewModel = hiltViewModel(),
     onBack: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -58,20 +59,16 @@ fun MapScreen(
         if (!ok) permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) else locationGranted = true
     }
 
-    // подписка на состояние трека
     val trackState by viewModel.trackState.collectAsState()
 
-    // если передали id — один раз запросить трек
     LaunchedEffect(trackIdToShow) {
         trackIdToShow?.let { viewModel.fetchTrack(it) }
     }
 
-    // MapView + lifecycle
     val mapView = rememberMapViewWithLifecycle(lifecycleOwner)
     val googleMapRef = remember { mutableStateOf<GoogleMap?>(null) }
     val polylineRef = remember { mutableStateOf<Polyline?>(null) }
 
-    // Fused location для центрирования / обновлений
     val fused = remember { LocationServices.getFusedLocationProviderClient(context) }
     var lastLocation by remember { mutableStateOf<Location?>(null) }
 
@@ -83,7 +80,6 @@ fun MapScreen(
         }
     }
 
-    // Запрос/отмена обновлений — и cleanup при уничтожении composable
     LaunchedEffect(locationGranted) {
         if (locationGranted) {
             try {
@@ -110,7 +106,6 @@ fun MapScreen(
             navigationIcon = {
                 if (onBack != null) {
                     IconButton(onClick = {
-                        // очистим track state чтобы при повторном входе не оставались старые данные
                         viewModel.clearTrackState()
                         onBack()
                     }) {
@@ -128,7 +123,6 @@ fun MapScreen(
                     googleMapRef.value = g
                     g.uiSettings.isZoomControlsEnabled = true
 
-                    // вкл my-location только после проверки разрешения
                     if (locationGranted &&
                         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
                         == PackageManager.PERMISSION_GRANTED
@@ -138,7 +132,6 @@ fun MapScreen(
                         } catch (_: SecurityException) { /* ignore */ }
                     }
 
-                    // если уже есть трек — нарисовать
                     when (val s = trackState) {
                         is TrackState.Success -> drawTrackOnMap(g, s.track, polylineRef)
                         else -> {}
@@ -146,7 +139,6 @@ fun MapScreen(
                 }
             }
 
-            // кнопка центрирования (нижний правый угол)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -179,7 +171,6 @@ fun MapScreen(
                 }
             }
 
-            // индикатор загрузки/ошибки
             when (trackState) {
                 is TrackState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -206,7 +197,6 @@ fun MapScreen(
     }
 }
 
-/** рисует трек, удаляя пред. polyline и центруя камеру */
 private fun drawTrackOnMap(g: GoogleMap, track: TrackDto, polylineRef: MutableState<Polyline?>) {
     val safePoints = (track.points ?: emptyList()).mapNotNull { p ->
         val lat = p.lat ?: return@mapNotNull null

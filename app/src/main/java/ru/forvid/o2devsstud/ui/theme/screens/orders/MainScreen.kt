@@ -1,64 +1,46 @@
-package ru.forvid.o2devsstud.ui.screens
+package ru.forvid.o2devsstud.ui.theme.screens.orders
 
+import androidx.activity.ComponentActivity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import ru.forvid.o2devsstud.ui.components.AppDrawer
-import ru.forvid.o2devsstud.ui.navigation.MainAppNavGraph
-import ru.forvid.o2devsstud.ui.navigation.Screen
-import ru.forvid.o2devsstud.ui.viewmodel.AuthViewModel
+import ru.forvid.o2devsstud.ui.theme.navigation.MainAppNavGraph
+import ru.forvid.o2devsstud.ui.theme.viewmodel.AuthViewModel
+import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(authViewModel: AuthViewModel = hiltViewModel()) {
+fun MainScreen(
+    // Теперь я снова принимаю authViewModel, как и ожидает AppNavigation.kt
+    authViewModel: AuthViewModel
+) {
     val mainNavController = rememberNavController()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val currentBackStackEntry = mainNavController.currentBackStackEntryAsState()
-    val currentRoute = currentBackStackEntry.value?.destination?.route
 
-    // Activity-scoped ProfileViewModel to show avatar/name in drawer header
-    val profileVm: ProfileViewModel = hiltViewModel()
-    val profileState by profileVm.uiState.collectAsState()
-    val profile = profileState.profile
+    // Централизованно создаю все общие ViewModel здесь.
+    val activity = LocalContext.current as ComponentActivity
+    val profileViewModel: ProfileViewModel = hiltViewModel(activity)
+    val ordersViewModel: OrdersViewModel = hiltViewModel(activity)
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            // ModalDrawerSheet гарантирует корректный (непрозрачный) фон для drawer
-            ModalDrawerSheet {
-                AppDrawer(
-                    currentRoute = currentRoute,
-                    onNavigate = { route ->
-                        mainNavController.navigate(route) {
-                            this.launchSingleTop = true
-                            popUpTo(mainNavController.graph.startDestinationId)
-                        }
-                    },
-                    onSignOut = { authViewModel.onSignOut() },
-                    closeDrawer = { scope.launch { drawerState.close() } },
-                    profile = profile,
-                    // profile header click: navigate to Profile screen and close drawer
-                    onProfileClick = {
-                        scope.launch {
-                            drawerState.close()
-                            mainNavController.navigate(Screen.Profile.route) {
-                                this.launchSingleTop = true
-                                popUpTo(mainNavController.graph.startDestinationId)
-                            }
-                        }
-                    }
-                )
-            }
+            // Передаю созданные ViewModel вниз по иерархии.
+            AppDrawer(
+                mainNavController = mainNavController,
+                onSignOut = { authViewModel.onSignOut() },
+                closeDrawer = { scope.launch { drawerState.close() } },
+                profileViewModel = profileViewModel
+            )
         }
     ) {
         Scaffold(
@@ -73,7 +55,12 @@ fun MainScreen(authViewModel: AuthViewModel = hiltViewModel()) {
                 )
             }
         ) { paddingValues ->
-            MainAppNavGraph(navController = mainNavController, paddingValues = paddingValues)
+            MainAppNavGraph(
+                navController = mainNavController,
+                paddingValues = paddingValues,
+                ordersViewModel = ordersViewModel,
+                profileViewModel = profileViewModel
+            )
         }
     }
 }

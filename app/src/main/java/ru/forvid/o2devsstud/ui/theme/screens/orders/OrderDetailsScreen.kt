@@ -1,25 +1,19 @@
-package ru.forvid.o2devsstud.ui.screens.orders
+package ru.forvid.o2devsstud.ui.theme.screens.orders
 
-import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.domain.model.OrderStatus
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.foundation.layout.RowScope
-
-private const val TAG = "OrderDetailsScreen"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,126 +21,160 @@ fun OrderDetailsScreen(
     orderId: Long,
     onBack: () -> Unit,
     onConfirm: (Long) -> Unit,
+    onShowTrackOnMap: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: OrdersViewModel
 ) {
-    val orders by viewModel.orders.collectAsState()
-    val order = orders.find { it.id == orderId }
-
-    val scope = rememberCoroutineScope()
-    val scroll = rememberScrollState()
+    val uiState by viewModel.uiState.collectAsState()
+    val order = remember(uiState.orders, orderId) {
+        uiState.orders.find { it.id == orderId }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Детали заявки") },
+                title = { Text("Заявка №${order?.requestNumber ?: "..."}") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                }
             )
-        }
+        },
+        modifier = modifier
     ) { innerPadding ->
-        if (order == null) {
-            Box(modifier = modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Заказ не найден (id = $orderId)")
-                    Spacer(Modifier.height(12.dp))
-                    Button(onClick = onBack) { Text("Назад") }
-                }
-            }
-            return@Scaffold
-        }
-
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(scroll)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top
+        Box(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            contentAlignment = Alignment.Center
         ) {
-            Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.elevatedCardElevation(6.dp)) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "${order.from} → ${order.to}", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Заявка: ${order.requestNumber}", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Статус: ${order.status}", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Расчетное время: ${order.estimatedDays} дн.", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // Actions area — кнопки статусов (одинаковая ширина)
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Сгруппируем кнопки по рядам (2 в ряд) для компактности
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    ActionButtonFull("Взял в работу") {
-                        scope.launch { runCatching { viewModel.changeStatus(order.id, OrderStatus.IN_WORK) }.onFailure { Log.e(TAG,"err",it) } }
-                    }
-                    ActionButtonOutlined("В дороге к месту погрузки") {
-                        scope.launch { runCatching { viewModel.changeStatus(order.id, OrderStatus.ON_WAY_TO_LOAD) }.onFailure { Log.e(TAG,"err",it) } }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    ActionButtonFull("Машина загружена") {
-                        scope.launch { runCatching { viewModel.changeStatus(order.id, OrderStatus.LOADED) }.onFailure { Log.e(TAG,"err",it) } }
-                    }
-                    ActionButtonOutlined("В дороге на место разгрузки") {
-                        scope.launch { runCatching { viewModel.changeStatus(order.id, OrderStatus.ON_WAY_TO_UNLOAD) }.onFailure { Log.e(TAG,"err",it) } }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    ActionButtonOutlined("На стоянке") {
-                        scope.launch { runCatching { viewModel.changeStatus(order.id, OrderStatus.PARKED) }.onFailure { Log.e(TAG,"err",it) } }
-                    }
-                    ActionButtonOutlined("ТС прибыло") {
-                        scope.launch { runCatching { viewModel.changeStatus(order.id, OrderStatus.ARRIVED_UNLOAD) }.onFailure { Log.e(TAG,"err",it) } }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    ActionButtonOutlined("Машина разгружена") {
-                        scope.launch { runCatching { viewModel.changeStatus(order.id, OrderStatus.UNLOADED) }.onFailure { Log.e(TAG,"err",it) } }
-                    }
-                    ActionButtonFull("Забрал документы") {
-                        scope.launch { runCatching { viewModel.changeStatus(order.id, OrderStatus.DOCUMENTS_TAKEN) }.onFailure { Log.e(TAG,"err",it) } }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = { onConfirm(order.id) }, modifier = Modifier.weight(1f)) { Text("Подтвердить") }
-                OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Назад") }
+            if (order != null) {
+                OrderContentView(
+                    order = order,
+                    viewModel = viewModel,
+                    onConfirm = onConfirm,
+                    onShowTrackOnMap = onShowTrackOnMap
+                )
+            } else if (uiState.isLoading) {
+                CircularProgressIndicator()
+            } else {
+                Text("Заказ с ID $orderId не найден.")
             }
         }
     }
 }
 
 @Composable
-private fun RowScope.ActionButtonFull(text: String, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
+private fun OrderContentView(
+    order: Order,
+    viewModel: OrdersViewModel,
+    onConfirm: (Long) -> Unit,
+    onShowTrackOnMap: (Long) -> Unit
+) {
+    Column(
         modifier = Modifier
-            .weight(1f)
-            .heightIn(min = 48.dp)
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text)
+        InfoCard(order = order)
+        StatusActionButtons(
+            order = order,
+            viewModel = viewModel,
+            onConfirm = onConfirm,
+            onShowTrackOnMap = onShowTrackOnMap
+        )
     }
 }
 
 @Composable
-private fun RowScope.ActionButtonOutlined(text: String, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier
-            .weight(1f)
-            .heightIn(min = 48.dp)
-    ) {
+private fun InfoCard(order: Order) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            InfoRow(label = "Откуда:", value = order.from)
+            InfoRow(label = "Куда:", value = order.to)
+            // Теперь это будет работать, так как displayName есть в OrderStatus
+            InfoRow(label = "Статус:", value = order.status.displayName)
+            InfoRow(label = "Расчетное время:", value = "${order.estimatedDays} дн.")
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(120.dp)
+        )
+        Text(text = value, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun StatusActionButtons(
+    order: Order,
+    viewModel: OrdersViewModel,
+    onConfirm: (Long) -> Unit,
+    onShowTrackOnMap: (Long) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+        // --- ИСПРАВЛЕННАЯ ЛОГИКА ПОКАЗА КНОПОК ---
+        when (order.status) {
+            OrderStatus.PLACED -> ActionButton("Взял в работу") {
+                viewModel.changeStatus(order.id, OrderStatus.TAKEN)
+            }
+            OrderStatus.TAKEN -> ActionButton("В пути к месту погрузки") {
+                viewModel.changeStatus(order.id, OrderStatus.IN_TRANSIT_TO_LOAD)
+                val trackId = order.id // ЗАГЛУШКА: ID трека к месту погрузки
+                viewModel.setActiveTrack(trackId)
+                onShowTrackOnMap(trackId)
+            }
+            OrderStatus.IN_TRANSIT_TO_LOAD -> ActionButton("Машина загружена") {
+                viewModel.changeStatus(order.id, OrderStatus.LOADED)
+                viewModel.setActiveTrack(null) // Сбрасываем трек
+            }
+            OrderStatus.LOADED -> ActionButton("В дороге на место разгрузки") {
+                viewModel.changeStatus(order.id, OrderStatus.IN_TRANSIT_TO_UNLOAD)
+                val trackId = order.id + 1 // ЗАГЛУШКА: ID трека к месту разгрузки
+                viewModel.setActiveTrack(trackId)
+                onShowTrackOnMap(trackId)
+            }
+            OrderStatus.IN_TRANSIT_TO_UNLOAD -> ActionButton("На стоянке") {
+                viewModel.changeStatus(order.id, OrderStatus.PARKED)
+                viewModel.setActiveTrack(null) // Сбрасываем трек
+            }
+            OrderStatus.PARKED -> ActionButton("Продолжить движение") {
+                viewModel.changeStatus(order.id, OrderStatus.IN_TRANSIT_TO_UNLOAD)
+                val trackId = order.id + 1 // ЗАГЛУШКА: ID трека к месту разгрузки
+                viewModel.setActiveTrack(trackId)
+                onShowTrackOnMap(trackId)
+            }
+            OrderStatus.ARRIVED_FOR_UNLOADING -> ActionButton("Машина разгружена") {
+                viewModel.changeStatus(order.id, OrderStatus.UNLOADED)
+                viewModel.setActiveTrack(null)
+            }
+            OrderStatus.UNLOADED -> ActionButton("Забрал документы") {
+                viewModel.changeStatus(order.id, OrderStatus.DOCUMENTS_TAKEN)
+                onConfirm(order.id)
+            }
+            else -> {
+                // Для статусов DOCUMENTS_TAKEN и других, не предполагающих действий
+                Text(
+                    "Для статуса \"${order.status.displayName}\" нет доступных действий.",
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionButton(text: String, onClick: () -> Unit) {
+    Button(onClick = onClick, modifier = Modifier.fillMaxWidth().height(48.dp)) {
         Text(text)
     }
 }

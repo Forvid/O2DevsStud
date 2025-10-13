@@ -13,10 +13,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
-import ru.forvid.o2devsstud.ui.navigation.RootNavigation
-import ru.forvid.o2devsstud.ui.navigation.Screen
+import ru.forvid.o2devsstud.ui.theme.navigation.RootNavigation
+import ru.forvid.o2devsstud.ui.theme.navigation.Screen
 import ru.forvid.o2devsstud.ui.theme.O2DevsStudTheme
-import ru.forvid.o2devsstud.ui.viewmodel.AuthViewModel
+import ru.forvid.o2devsstud.ui.theme.viewmodel.AuthViewModel
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -31,24 +31,22 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val isAuthorized = authState.isAuthorized
 
-                // Навигируем при изменении статуса авторизации
+                // Этот LaunchedEffect - единственный "дирижер" навигации при смене статуса авторизации.
                 LaunchedEffect(isAuthorized) {
-                    val target = if (isAuthorized) Screen.MainFlow.route else Screen.AuthFlow.route
-                    // безопасно навигируем (popUpTo корня)
-                    try {
-                        if (navController.currentDestination?.route != target) {
-                            navController.navigate(target) {
-                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                                launchSingleTop = true
-                            }
+                    val newRoute = if (isAuthorized) Screen.MainFlow.route else Screen.AuthFlow.route
+                    // Проверяю, чтобы не делать лишнюю навигацию, если уже на нужном экране.
+                    if (navController.currentDestination?.route != newRoute) {
+                        navController.navigate(newRoute) {
+                            // Очищаю весь стек навигации, чтобы нельзя было вернуться
+                            // на экран логина кнопкой "назад".
+                            popUpTo(0) { inclusive = true }
                         }
-                    } catch (_: Throwable) {
-                        // ignore: protection against graph not ready — NavHost сам установит стартовую точку
                     }
                 }
 
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    // стартовая точка выбор в зависимости от авторизации — это помогает сразу нарисовать нужный экран
+                    // NavHost стартует с нужного экрана в зависимости от текущего статуса авторизации.
+                    // Это предотвращает "мигание" экрана логина, если пользователь уже авторизован.
                     RootNavigation(
                         navController = navController,
                         startDestination = if (isAuthorized) Screen.MainFlow.route else Screen.AuthFlow.route

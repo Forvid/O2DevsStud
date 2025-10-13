@@ -15,39 +15,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import coil.compose.rememberAsyncImagePainter
-import ru.forvid.o2devsstud.domain.model.DriverProfile
-import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.hilt.navigation.compose.hiltViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.ProfileViewModel
-import androidx.compose.runtime.getValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    // Если передаётся profile — экран покажет его.
-    // Иначе будет использован ProfileViewModel (через Hilt) и содержимое будет взято из uiState.
-    profile: DriverProfile? = null,
-    profileViewModel: ProfileViewModel? = null,
-    onEdit: () -> Unit = {},
-    onLogout: () -> Unit = {},
-    onBack: () -> Unit = {},
+    // Теперь я получаю ViewModel напрямую из графа навигации.
+    // Это делает код чище и предсказуемее.
+    profileViewModel: ProfileViewModel,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // получаем VM: если передали — используем его, иначе берём через hilt
-    val vm: ProfileViewModel = profileViewModel ?: hiltViewModel()
+    // Состояние теперь берется только из переданной ViewModel.
+    val vmState by profileViewModel.uiState.collectAsState()
+    val profileToShow = vmState.profile
 
-    // состояние из VM (если profile не передан, будем его брать из vm.uiState)
-    val vmState by vm.uiState.collectAsState()
-
-    // финальный профиль для отображения: либо переданный, либо из vm
-    val profileToShow: DriverProfile? = profile ?: vmState.profile
-
-    // launcher для выбора изображения — при выборе вызываем vm.saveAvatarUri
+    // launcher для выбора изображения остаётся таким же.
     val pickImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { vm.saveAvatarUri(it.toString()) }
+        uri?.let { profileViewModel.saveAvatarUri(it.toString()) }
     }
 
     Column(
@@ -63,7 +51,8 @@ fun ProfileScreen(
                 }
             },
             actions = {
-                IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, contentDescription = "Редактировать") }
+                // TODO: Реализовать логику редактирования
+                IconButton(onClick = { /* onEdit() */ }) { Icon(Icons.Default.Edit, contentDescription = "Редактировать") }
             }
         )
 
@@ -74,9 +63,7 @@ fun ProfileScreen(
                 modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // avatar
                 Box(modifier = Modifier.size(96.dp), contentAlignment = Alignment.BottomEnd) {
-                    // если profileToShow?.avatarUrl нулевой, Coil корректно покажет placeholder (если настроен) — иначе пусто
                     val painter = rememberAsyncImagePainter(profileToShow?.avatarUrl)
                     Image(
                         painter = painter,
@@ -86,9 +73,6 @@ fun ProfileScreen(
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
-
-                    // если экран использует VM (т.е. мы можем сохранять аватар), показываем кнопку редактирования
-                    // если profile был передан извне (readonly), всё равно можно показывать кнопку — она будет сохранять в VM
                     IconButton(onClick = { pickImageLauncher.launch("image/*") }) {
                         Icon(Icons.Default.Edit, contentDescription = "Изменить фото")
                     }
@@ -116,11 +100,12 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Button(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("Редактировать") }
+                    // TODO: Реализовать логику редактирования
+                    Button(onClick = { /* onEdit() */ }, modifier = Modifier.weight(1f)) { Text("Редактировать") }
                     OutlinedButton(onClick = {
-                        // вызываем logout-логику из VM, а затем callback
-                        vm.logout()
-                        onLogout()
+                        // TODO: Логика выхода должна быть централизована в MainScreen/RootNavigation
+                        // profileViewModel.logout()
+                        // onLogout()
                     }, modifier = Modifier.weight(1f)) {
                         Text("Выйти")
                     }

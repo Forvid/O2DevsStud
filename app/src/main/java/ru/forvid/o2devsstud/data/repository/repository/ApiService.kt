@@ -18,34 +18,35 @@ import ru.forvid.o2devsstud.data.remote.dto.TrackDto
 import ru.forvid.o2devsstud.data.remote.dto.AvatarUploadResponseDto
 
 interface ApiService {
+
     // AUTH
-    @POST("login")
+    @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequestDto): TokenResponseDto
 
     // PROFILE
-    @GET("profile")
+    @GET("api/profile")
     suspend fun getProfile(): ProfileDto
 
-    @PUT("profile")
+    @PUT("api/profile")
     suspend fun updateProfile(@Body body: ProfileDto): ProfileDto
 
     // HISTORY
-    @GET("history")
+    @GET("api/history")
     suspend fun getHistory(): List<HistoryDto>
 
     // CONTACT / SUPPORT
-    @POST("contact")
+    @POST("api/contact")
     suspend fun sendMessage(@Body request: ContactRequest): Unit
 
     // ORDERS / TRACKS
-    @GET("orders")
+    @GET("api/orders")
     suspend fun getOrders(): List<OrderDto>
 
-    @GET("tracks/{id}")
+    @GET("api/tracks/{id}")
     suspend fun getTrack(@Path("id") id: Long): TrackDto?
 
     // AVATAR UPLOAD (multipart)
     @Multipart
-    @POST("profile/avatar")
+    @POST("api/profile/avatar")
     suspend fun uploadAvatar(@Part file: MultipartBody.Part): AvatarUploadResponseDto
 }

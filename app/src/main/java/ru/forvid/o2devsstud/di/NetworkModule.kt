@@ -23,12 +23,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideApiKeyInterceptor(): Interceptor = Interceptor { chain ->
-        val apiKey = BuildConfig.SERVER_API_KEY.ifBlank {
-            // Фоллбек только для локальной разработки (НЕ пушить секреты в репозиторий)
-            "c1378193-bc0e-42c8-a502-b8d66d189617"
-        }
         val request = chain.request().newBuilder()
-            .addHeader("X-API-KEY", apiKey)
+            .addHeader("X-API-KEY", "c1378193-bc0e-42c8-a502-b8d66d189617")
             .build()
         chain.proceed(request)
     }
@@ -38,7 +34,7 @@ object NetworkModule {
     fun provideOkHttpClient(apiKeyInterceptor: Interceptor): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
-            else HttpLoggingInterceptor.Level.BASIC
+            else HttpLoggingInterceptor.Level.NONE
         }
 
         return OkHttpClient.Builder()
@@ -46,7 +42,6 @@ object NetworkModule {
             .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 
@@ -56,15 +51,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(client: OkHttpClient, gson: Gson): Retrofit {
-        // На реальном устройстве с adb reverse -> используем localhost 127.0.0.1:8080
-        // На эмуляторе используется 10.0.2.2:8080
-        val localForDevice = "http://127.0.0.1:8080/"
-        val emulator = "http://10.0.2.2:8080/"
-
-        val baseUrl = when {
-            BuildConfig.DEBUG -> localForDevice
-            else -> "http://94.228.125.136:8080/"
-        }
+        // --- ИЗМЕНЕНИЕ ---
+        // Убираю /api/ из базового URL.
+        // Теперь он указывает только на корень сервера.
+        val baseUrl = "http://94.228.125.136:8080/"
 
         return Retrofit.Builder()
             .baseUrl(baseUrl)
