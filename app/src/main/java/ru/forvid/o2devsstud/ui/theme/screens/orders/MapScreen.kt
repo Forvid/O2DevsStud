@@ -10,8 +10,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -42,6 +42,7 @@ fun MapScreen(
     modifier: Modifier = Modifier,
     viewModel: OrdersViewModel,
     trackIdToShow: Long? = null,
+    showTopBar: Boolean = true,
     onBack: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -62,7 +63,12 @@ fun MapScreen(
     val trackState by viewModel.trackState.collectAsState()
 
     LaunchedEffect(trackIdToShow) {
-        trackIdToShow?.let { viewModel.fetchTrack(it) }
+        if (trackIdToShow != null) {
+            viewModel.fetchTrack(trackIdToShow)
+        } else {
+            // Если ID трека null, очищает состояние, чтобы убрать старый трек с карты
+            viewModel.clearTrackState()
+        }
     }
 
     val mapView = rememberMapViewWithLifecycle(lifecycleOwner)
@@ -100,23 +106,26 @@ fun MapScreen(
         }
     }
 
+    // --- Оборачивает всё в Column, чтобы управлять TopAppBar ---
     Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("Карта") },
-            navigationIcon = {
-                if (onBack != null) {
-                    IconButton(onClick = {
-                        viewModel.clearTrackState()
-                        onBack()
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+        // Показывает TopAppBar только если showTopBar = true
+        if (showTopBar) {
+            TopAppBar(
+                title = { Text("Карта") },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = {
+                            viewModel.clearTrackState()
+                            onBack()
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        }
                     }
                 }
-            }
-        )
+            )
+        }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
+        // Карта теперь всегда внутри Box
         Box(modifier = Modifier.fillMaxSize()) {
             AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize()) { mv ->
                 mv.getMapAsync { g ->
@@ -134,6 +143,8 @@ fun MapScreen(
 
                     when (val s = trackState) {
                         is TrackState.Success -> drawTrackOnMap(g, s.track, polylineRef)
+                        // При очистке состояния убираем линию с карты
+                        is TrackState.Idle -> polylineRef.value?.remove()
                         else -> {}
                     }
                 }
@@ -192,6 +203,8 @@ fun MapScreen(
         val g = googleMapRef.value ?: return@LaunchedEffect
         when (val s = trackState) {
             is TrackState.Success -> drawTrackOnMap(g, s.track, polylineRef)
+            // При очистке состояния убираем линию с карты
+            is TrackState.Idle -> polylineRef.value?.remove()
             else -> {}
         }
     }

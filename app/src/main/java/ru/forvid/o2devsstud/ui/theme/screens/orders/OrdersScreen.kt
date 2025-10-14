@@ -24,13 +24,10 @@ fun OrdersScreen(
     modifier: Modifier = Modifier,
     viewModel: OrdersViewModel
 ) {
-    // Получаю полное состояние UI из ViewModel.
     val uiState by viewModel.uiState.collectAsState()
     val orders = uiState.orders
 
     Scaffold(
-        // Убрал TopAppBar отсюда, так как он теперь есть в MainScreen.
-        // Это предотвращает появление двух TopAppBar на одном экране.
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateOrder) {
                 Icon(Icons.Default.Add, contentDescription = "Создать заявку")
@@ -42,11 +39,9 @@ fun OrdersScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Показываю индикатор загрузки, только если список пуст.
             if (uiState.isLoading && orders.isEmpty()) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (orders.isEmpty()) {
-                // Сообщение, если заказов нет.
                 Text(
                     "Нет активных поставок",
                     modifier = Modifier.align(Alignment.Center),
@@ -69,14 +64,17 @@ fun OrdersScreen(
                 }
             }
 
-            // Показываю сообщение об ошибке внизу экрана, если оно есть.
             uiState.error?.let { error ->
-                Snackbar(
+                Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(16.dp)
                 ) {
-                    Text(text = "Ошибка: $error")
+                    Text(
+                        text = "Ошибка: $error",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }

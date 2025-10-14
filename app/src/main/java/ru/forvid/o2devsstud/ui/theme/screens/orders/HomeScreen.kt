@@ -11,15 +11,21 @@ fun HomeScreen(
     viewModel: OrdersViewModel,
     onOrderClick: (Long) -> Unit
 ) {
+    // Подписываемся на ID активного трека из ViewModel
     val activeOrderTrackId by viewModel.activeOrderTrackId.collectAsState()
 
+    // Этот LaunchedEffect будет автоматически запрашивать трек,
+    // как только activeOrderTrackId изменится в ViewModel.
     LaunchedEffect(activeOrderTrackId) {
-        // Эта логика может быть доработана, если нужно загружать трек
+        activeOrderTrackId?.let { trackId ->
+            viewModel.fetchTrack(trackId)
+        }
     }
 
     MapScreen(
-        trackIdToShow = activeOrderTrackId,
         viewModel = viewModel,
-        onBack = null // На главном экране кнопка "назад" не нужна
+        trackIdToShow = activeOrderTrackId,
+        showTopBar = false, // <-- Вот ключ к чистому интерфейсу!
+        onBack = null
     )
 }

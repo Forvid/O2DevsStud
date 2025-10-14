@@ -1,10 +1,12 @@
 package ru.forvid.o2devsstud.ui.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import ru.forvid.o2devsstud.data.repository.repository.ProfileRepository
 import ru.forvid.o2devsstud.domain.model.DriverProfile
 import javax.inject.Inject
 
@@ -16,33 +18,24 @@ data class ProfileUiState(
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    // TODO: inject repository if you have one
+    // --- Внедряем репозиторий ---
+    private val repository: ProfileRepository
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _ui.asStateFlow()
 
     init {
-        // загрузка локально/с сервера при создании VM
         loadProfile()
     }
 
-    fun loadProfile(id: Long = 0L) {
+    fun loadProfile() {
         viewModelScope.launch {
-            _ui.update { it.copy(isLoading = true) }
+            _ui.update { it.copy(isLoading = true, error = null) }
             try {
-                // TODO: replace with real repository call
-                val p = DriverProfile(
-                    id = id,
-                    fullName = "Иванов Иван",
-                    column = "Колонна 1",
-                    phoneDriver = "+7 900 000 00 00",
-                    phoneColumn = "+7 900 000 00 01",
-                    phoneLogist = "+7 900 000 00 02",
-                    email = "ivanov@example.com",
-                    avatarUrl = null
-                )
-                _ui.update { it.copy(profile = p, isLoading = false, error = null) }
+                // --- Вызывает метод из репозитория ---
+                val profile = repository.getProfile()
+                _ui.update { it.copy(profile = profile, isLoading = false) }
             } catch (e: Throwable) {
                 _ui.update { it.copy(isLoading = false, error = e.message) }
             }
@@ -53,17 +46,12 @@ class ProfileViewModel @Inject constructor(
         // TODO: implement logout flow (clear token, go to auth)
     }
 
-    /**
-     * Сохраняет uri (строку) в локальном состоянии; при наличии API - загрузить/сохранить на сервер
-     */
-    fun saveAvatarUri(uriString: String) {
+    fun saveAvatarUri(uri: Uri) {
         viewModelScope.launch {
-            val current = _ui.value.profile
-            if (current != null) {
-                val updated = current.copy(avatarUrl = uriString)
-                _ui.update { it.copy(profile = updated) }
-                // TODO: persist to repository/backend if required
-            }
+            val currentProfile = _ui.value.profile ?: return@launch
+            val updatedProfile = currentProfile.copy(avatarUrl = uri.toString())
+            _ui.update { it.copy(profile = updatedProfile) }
+            // TODO: Реализовать загрузку аватара на сервер через репозиторий
         }
     }
 }

@@ -3,62 +3,97 @@ package ru.forvid.o2devsstud.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import ru.forvid.o2devsstud.domain.model.HistoryItem
 import ru.forvid.o2devsstud.ui.viewmodel.HistoryViewModel
 
-// Модель данных можно оставить здесь или вынести в domain/model
-data class HistoryItem(
-    val id: Long,
-    val from: String,
-    val to: String,
-    val timeOnRoute: String,
-    val contractorName: String
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    // Теперь получаю ViewModel напрямую из графа навигации.
     viewModel: HistoryViewModel,
     onOpen: (Long) -> Unit,
-    onBack: () -> Unit, // Кнопка "назад" теперь обязательна
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Беру состояние из ViewModel
     val state by viewModel.uiState.collectAsState()
-    val items = state.items
 
-    Column(modifier = modifier.fillMaxSize()) {
-        CenterAlignedTopAppBar(
-            title = { Text("История поставок") },
-            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-            // TODO: Добавить кнопку "назад", если она нужна в TopAppBar
-        )
-
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-            items(items) { item ->
-                Card(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("${item.from} → ${item.to}")
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text("Время в дороге: ${item.timeOnRoute}")
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Контрагент: ${item.contractorName}")
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("История поставок") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
+                }
+            )
+        },
+        modifier = modifier
+    ) { innerPadding ->
+        // --- Применяет системный padding к Box ---
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                state.isLoading && state.items.isEmpty() -> {
+                    CircularProgressIndicator()
+                }
+                state.error != null -> {
+                    Text(text = "Ошибка: ${state.error}")
+                }
+                state.items.isEmpty() -> {
+                    Text(text = "История поставок пуста")
+                }
+                else -> {
+                    // --- Убираем передачу padding в HistoryList ---
+                    HistoryList(items = state.items)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryList(items: List<HistoryItem>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        // --- Использует простой padding для всего списка ---
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(items, key = { it.id }) { item ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "${item.from} → ${item.to}",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "Время в дороге: ${item.timeOnRoute}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "Контрагент: ${item.contractorName}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
         }

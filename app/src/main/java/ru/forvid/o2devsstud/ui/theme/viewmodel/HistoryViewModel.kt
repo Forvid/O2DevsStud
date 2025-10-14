@@ -6,10 +6,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import ru.forvid.o2devsstud.data.remote.dto.HistoryDto
-import ru.forvid.o2devsstud.data.remote.dto.toUiItem
-import ru.forvid.o2devsstud.ui.screens.HistoryItem
-import ru.forvid.o2devsstud.data.repository.repository.ApiService
+import ru.forvid.o2devsstud.data.repository.repository.HistoryRepository // <-- ИЗМЕНЕНИЕ
+import ru.forvid.o2devsstud.domain.model.HistoryItem
 import javax.inject.Inject
 
 private const val TAG = "HistoryViewModel"
@@ -22,7 +20,8 @@ data class HistoryUiState(
 
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
-    private val apiService: ApiService
+    // --- Внедряет HistoryRepository вместо ApiService ---
+    private val repository: HistoryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HistoryUiState())
@@ -36,9 +35,9 @@ class HistoryViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                val remote: List<HistoryDto> = apiService.getHistory()
-                val mapped = remote.map { it.toUiItem() }
-                _uiState.update { it.copy(items = mapped, isLoading = false) }
+                // --- Получает данные из репозитория ---
+                val historyItems = repository.getHistoryItems()
+                _uiState.update { it.copy(items = historyItems, isLoading = false) }
             } catch (e: Throwable) {
                 Log.e(TAG, "loadHistory error", e)
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
