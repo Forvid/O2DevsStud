@@ -1,12 +1,12 @@
 package ru.forvid.o2devsstud.data.repository
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import ru.forvid.o2devsstud.data.repository.local.OrderDao
+import ru.forvid.o2devsstud.data.repository.local.OrderEntity
 import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.domain.model.OrderStatus
 import ru.forvid.o2devsstud.domain.repository.OrdersRepository
-import ru.forvid.o2devsstud.data.repository.local.OrderDao
-import ru.forvid.o2devsstud.data.repository.local.OrderEntity
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,8 +20,12 @@ class RoomOrdersRepository @Inject constructor(
         from = e.fromAddress,
         to = e.toAddress,
         requestNumber = e.requestNumber,
-        status = try { OrderStatus.valueOf(e.status) } catch (t: Throwable) { OrderStatus.PLACED },
-        estimatedDays = e.estimatedDays
+        status = OrderStatus.fromString(e.status),
+        estimatedDays = e.estimatedDays,
+        trackId = e.trackId,
+        date = e.date,
+        statusName = e.statusName,
+        codAmount = e.codAmount
     )
 
     private fun domainToEntity(o: Order): OrderEntity = OrderEntity(
@@ -30,7 +34,11 @@ class RoomOrdersRepository @Inject constructor(
         toAddress = o.to,
         requestNumber = o.requestNumber,
         status = o.status.name,
-        estimatedDays = o.estimatedDays
+        estimatedDays = o.estimatedDays,
+        trackId = o.trackId,
+        date = o.date,
+        statusName = o.statusName,
+        codAmount = o.codAmount
     )
 
     override suspend fun getAll(): List<Order> = withContext(Dispatchers.IO) {

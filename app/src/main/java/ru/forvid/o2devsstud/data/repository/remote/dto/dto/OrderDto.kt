@@ -22,5 +22,14 @@ data class OrderDto(
     @SerializedName("estimatedDays") val estimatedDaysAlt: Int? = null,
 
     @SerializedName("track_id")
-    val trackId: Long? = null
+    val trackId: Long? = null,
+
+    @SerializedName("date")
+    val date: String?,
+
+    @SerializedName("status_name")
+    val statusName: String?,
+
+    @SerializedName("cod_amount")
+    val codAmount: String?
 )

@@ -1,5 +1,6 @@
 package ru.forvid.o2devsstud.ui.viewmodel
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,6 +15,7 @@ import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.domain.model.OrderStatus
 import ru.forvid.o2devsstud.domain.repository.OrdersRepository
 import ru.forvid.o2devsstud.data.repository.repository.ApiService
+import ru.forvid.o2devsstud.domain.util.OrderCompletionNotifier
 import javax.inject.Inject
 
 private const val TAG = "OrdersViewModel"
@@ -21,7 +23,8 @@ private const val TAG = "OrdersViewModel"
 data class OrdersUiState(
     val orders: List<Order> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val attachedDocuments: Map<Long, List<Uri>> = emptyMap()
 )
 
 sealed class TrackState {
@@ -34,7 +37,8 @@ sealed class TrackState {
 @HiltViewModel
 class OrdersViewModel @Inject constructor(
     private val repository: OrdersRepository,
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val orderCompletionNotifier: OrderCompletionNotifier
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OrdersUiState())
@@ -49,14 +53,14 @@ class OrdersViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             loadLocal()
-            syncFromServer().join() // Дожидаемся завершения синхронизации
+            syncFromServer().join()
             findAndSetInitialActiveTrack()
         }
     }
 
     private suspend fun loadLocal() {
         try {
-            val local = repository.getAll()
+            val local = repository.getAll().filter { it.status != OrderStatus.DOCUMENTS_TAKEN }
             _uiState.update { it.copy(orders = local, error = null) }
         } catch (e: Throwable) {
             Log.e(TAG, "loadLocal error", e)
@@ -64,7 +68,7 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    fun syncFromServer(): Job = viewModelScope.launch { // Возвращаем Job для ожидания
+    fun syncFromServer(): Job = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true, error = null) }
         try {
             val remote: List<OrderDto> = apiService.getOrders()
@@ -72,7 +76,7 @@ class OrdersViewModel @Inject constructor(
             for (dto in remote) {
                 repository.insert(dto.toDomain())
             }
-            val updated = repository.getAll()
+            val updated = repository.getAll().filter { it.status != OrderStatus.DOCUMENTS_TAKEN }
             _uiState.update { it.copy(orders = updated, isLoading = false, error = null) }
         } catch (e: Throwable) {
             Log.e(TAG, "Error fetching orders from server", e)
@@ -84,22 +88,23 @@ class OrdersViewModel @Inject constructor(
         val activeOrder = _uiState.value.orders.firstOrNull {
             it.status == OrderStatus.IN_TRANSIT_TO_LOAD || it.status == OrderStatus.IN_TRANSIT_TO_UNLOAD
         }
-
-        if (activeOrder != null && activeOrder.trackId != null) {
-            _activeOrderTrackId.value = activeOrder.trackId
-            Log.d(TAG, "Active track found and set: ${activeOrder.trackId}")
-        } else {
-            Log.d(TAG, "No active orders with trackId found.")
-        }
+        _activeOrderTrackId.value = activeOrder?.trackId
     }
 
     fun changeStatus(orderId: Long, status: OrderStatus) {
         viewModelScope.launch {
             try {
-                val currentOrders = _uiState.value.orders
-                val updatedOrders = currentOrders.map { if (it.id == orderId) it.copy(status = status) else it }
-                _uiState.update { it.copy(orders = updatedOrders) }
                 repository.updateStatus(orderId, status)
+
+                if (status == OrderStatus.DOCUMENTS_TAKEN) {
+                    orderCompletionNotifier.notifyOrderCompleted()
+                    loadLocal()
+                } else {
+                    val currentOrders = _uiState.value.orders
+                    val updatedOrders = currentOrders.map { if (it.id == orderId) it.copy(status = status) else it }
+                    _uiState.update { it.copy(orders = updatedOrders) }
+                }
+
             } catch (e: Throwable) {
                 Log.e(TAG, "Error updating status, rolling back", e)
                 loadLocal()
@@ -116,7 +121,10 @@ class OrdersViewModel @Inject constructor(
                 requestNumber = requestNumber,
                 status = OrderStatus.PLACED,
                 estimatedDays = estimatedDays,
-                trackId = null // Явно указываем, что trackId пока нет
+                trackId = null,
+                date = "Сегодня",
+                statusName = "Заказ размещен",
+                codAmount = null
             )
             try {
                 repository.insert(order)
@@ -145,11 +153,22 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    fun clearTrackState() {
-        _trackState.value = TrackState.Idle
+    fun clearTrackState() { _trackState.value = TrackState.Idle }
+    fun setActiveTrack(trackId: Long?) { _activeOrderTrackId.value = trackId }
+    fun addDocument(orderId: Long, documentUri: Uri) {
+        val currentDocs = _uiState.value.attachedDocuments[orderId] ?: emptyList()
+        val updatedDocs = currentDocs + documentUri
+        val updatedMap = _uiState.value.attachedDocuments + (orderId to updatedDocs)
+        _uiState.update { it.copy(attachedDocuments = updatedMap) }
     }
-
-    fun setActiveTrack(trackId: Long?) {
-        _activeOrderTrackId.value = trackId
+    fun removeDocument(orderId: Long, documentUri: Uri) {
+        val currentDocs = _uiState.value.attachedDocuments[orderId] ?: return
+        val updatedDocs = currentDocs - documentUri
+        val updatedMap = if (updatedDocs.isEmpty()) {
+            _uiState.value.attachedDocuments - orderId
+        } else {
+            _uiState.value.attachedDocuments + (orderId to updatedDocs)
+        }
+        _uiState.update { it.copy(attachedDocuments = updatedMap) }
     }
 }

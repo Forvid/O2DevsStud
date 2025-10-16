@@ -10,17 +10,21 @@ enum class OrderStatus(val displayName: String) {
     // Статусы, связанные с движением
     IN_TRANSIT_TO_LOAD("В пути к месту погрузки"),
     IN_TRANSIT_TO_UNLOAD("В пути к месту разгрузки"),
-    PARKED("На стоянке"), // Переименовано из ON_HOLD для ясности
+    PARKED("На стоянке"),
     ARRIVED_FOR_UNLOADING("Прибыла на место разгрузки"),
 
     // Финальный статус
-    DOCUMENTS_TAKEN("Документы забраны");
+    DOCUMENTS_TAKEN("Документы забраны"),
 
+    // Статус для обработки неизвестных значений
+    UNKNOWN("Неизвестный статус");
 
     companion object {
+        // Метод для безопасного преобразования строки в статус
         fun fromString(value: String?): OrderStatus {
+            // Используем entries вместо values() для лучшей производительности
             return entries.find { it.name.equals(value, ignoreCase = true) }
-                ?: PLACED
+                ?: UNKNOWN // Возвращаем UNKNOWN, если ничего не найдено
         }
     }
 }

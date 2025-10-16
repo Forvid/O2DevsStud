@@ -6,7 +6,7 @@ import androidx.room.TypeConverters
 
 
 
-@Database(entities = [OrderEntity::class], version = 3, exportSchema = false)
+@Database(entities = [OrderEntity::class], version = 4, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun orderDao(): OrderDao

@@ -37,7 +37,6 @@ android {
     }
 
     composeOptions {
-        // kotlinCompilerExtensionVersion оставляй в соответствии с твоим компилятором / Kotlin
         kotlinCompilerExtensionVersion = "1.5.11"
     }
 
@@ -51,6 +50,12 @@ android {
         release {
             isMinifyEnabled = false
         }
+    }
+}
+
+kapt {
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
     }
 }
 

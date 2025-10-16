@@ -22,12 +22,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import ru.forvid.o2devsstud.domain.model.DriverProfile
+import ru.forvid.o2devsstud.ui.theme.viewmodel.AuthViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     profileViewModel: ProfileViewModel,
+    authViewModel: AuthViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -48,8 +50,7 @@ fun ProfileScreen(
     ) { innerPadding ->
         Box(
             modifier = Modifier
-                .fillMaxSize()
-            ,
+                .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             when {
@@ -61,6 +62,7 @@ fun ProfileScreen(
                 uiState.profile != null -> ProfileContent(
                     profile = uiState.profile!!,
                     viewModel = profileViewModel,
+                    authViewModel = authViewModel,
                     contentPadding = innerPadding
                 )
             }
@@ -72,6 +74,7 @@ fun ProfileScreen(
 private fun ProfileContent(
     profile: DriverProfile,
     viewModel: ProfileViewModel,
+    authViewModel: AuthViewModel,
     contentPadding: PaddingValues
 ) {
     val pickImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -86,7 +89,6 @@ private fun ProfileContent(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Добавляем отступ сверху вручную
         Spacer(modifier = Modifier.height(16.dp))
 
         Box(contentAlignment = Alignment.BottomEnd) {
@@ -125,7 +127,7 @@ private fun ProfileContent(
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-            onClick = { /* TODO: Логика выхода */ },
+            onClick = { authViewModel.onSignOut() },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Выйти")

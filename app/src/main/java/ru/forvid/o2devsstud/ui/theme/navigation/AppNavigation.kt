@@ -47,9 +47,14 @@ fun RootNavigation(navController: NavHostController, startDestination: String) {
     val authState by authViewModel.authState.collectAsState()
 
     LaunchedEffect(authState.isAuthorized) {
-        if (authState.isAuthorized) {
-            navController.navigate(Screen.MainFlow.route) {
-                popUpTo(Screen.AuthFlow.route) {
+        val newRoute = if (authState.isAuthorized) {
+            Screen.MainFlow.route
+        } else {
+            Screen.AuthFlow.route
+        }
+        if (navController.currentDestination?.route?.substringBefore("/") != newRoute) {
+            navController.navigate(newRoute) {
+                popUpTo(navController.graph.startDestinationId) {
                     inclusive = true
                 }
             }
@@ -58,7 +63,6 @@ fun RootNavigation(navController: NavHostController, startDestination: String) {
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Screen.AuthFlow.route) { LoginScreen(viewModel = authViewModel) }
-        // Передаем AuthViewModel в MainScreen
         composable(Screen.MainFlow.route) { MainScreen(authViewModel = authViewModel) }
     }
 }
@@ -68,7 +72,8 @@ fun MainAppNavGraph(
     navController: NavHostController,
     paddingValues: PaddingValues,
     ordersViewModel: OrdersViewModel,
-    profileViewModel: ProfileViewModel
+    profileViewModel: ProfileViewModel,
+    authViewModel: AuthViewModel
 ) {
     NavHost(
         navController = navController,
@@ -81,11 +86,11 @@ fun MainAppNavGraph(
                 onOrderClick = { orderId -> navController.navigate(Screen.OrderDetails.createRoute(orderId)) }
             )
         }
+
         composable(Screen.Orders.route) {
             OrdersScreen(
                 onOpenOrder = { orderId -> navController.navigate(Screen.OrderDetails.createRoute(orderId)) },
                 onCreateOrder = { navController.navigate(Screen.CreateOrder.route) },
-                onShowMap = { trackId -> navController.navigate(Screen.MapWithTrack.createRoute(trackId)) },
                 viewModel = ordersViewModel
             )
         }
@@ -96,6 +101,7 @@ fun MainAppNavGraph(
             route = Screen.OrderDetails.route,
             arguments = listOf(navArgument("orderId") { type = NavType.LongType })
         ) {
+            // --- ИСПРАВЛЕНИЕ 2: Возвращена правильная логика для OrderDetailsScreen ---
             OrderDetailsScreen(
                 orderId = it.arguments?.getLong("orderId") ?: 0L,
                 onBack = { navController.popBackStack() },
@@ -126,9 +132,9 @@ fun MainAppNavGraph(
             MapScreen(trackIdToShow = it.arguments?.getLong("trackId"), viewModel = ordersViewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.Profile.route) {
-            // Используем переданную ViewModel
             ProfileScreen(
                 profileViewModel = profileViewModel,
+                authViewModel = authViewModel,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -142,8 +148,6 @@ fun MainAppNavGraph(
         }
         composable(Screen.ContactDevelopers.route) {
             ContactDevelopersScreen(
-                onSendMessage = { /* TODO */ },
-                phoneToCall = "+70000000000",
                 onBack = { navController.popBackStack() }
             )
         }

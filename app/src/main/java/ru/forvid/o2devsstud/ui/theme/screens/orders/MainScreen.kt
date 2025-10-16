@@ -19,14 +19,12 @@ import ru.forvid.o2devsstud.ui.viewmodel.ProfileViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    // Теперь я снова принимаю authViewModel, как и ожидает AppNavigation.kt
     authViewModel: AuthViewModel
 ) {
     val mainNavController = rememberNavController()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Централизованно создаю все общие ViewModel здесь.
     val activity = LocalContext.current as ComponentActivity
     val profileViewModel: ProfileViewModel = hiltViewModel(activity)
     val ordersViewModel: OrdersViewModel = hiltViewModel(activity)
@@ -34,7 +32,6 @@ fun MainScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            // Передаю созданные ViewModel вниз по иерархии.
             AppDrawer(
                 mainNavController = mainNavController,
                 onSignOut = { authViewModel.onSignOut() },
@@ -55,11 +52,13 @@ fun MainScreen(
                 )
             }
         ) { paddingValues ->
+            // --- Передает authViewModel в MainAppNavGraph ---
             MainAppNavGraph(
                 navController = mainNavController,
                 paddingValues = paddingValues,
                 ordersViewModel = ordersViewModel,
-                profileViewModel = profileViewModel
+                profileViewModel = profileViewModel,
+                authViewModel = authViewModel
             )
         }
     }
