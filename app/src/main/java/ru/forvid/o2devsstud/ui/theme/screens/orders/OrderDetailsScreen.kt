@@ -46,7 +46,12 @@ fun OrderDetailsScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
-                }
+                },
+                // Добавляем цвета из M3 темы
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         modifier = modifier
@@ -98,7 +103,6 @@ private fun OrderContentView(
         InfoCard(order = order)
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- Показывает блок документов, когда водитель прибыл или разгрузился ---
         if (order.status in listOf(OrderStatus.ARRIVED_FOR_UNLOADING, OrderStatus.UNLOADED)) {
             DocumentsCard(
                 attachedDocuments = attachedDocuments,
@@ -121,6 +125,7 @@ private fun OrderContentView(
 
 @Composable
 private fun InfoCard(order: Order) {
+    // Card уже из M3, все в порядке
     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             InfoRow(label = "Откуда:", value = order.from)
@@ -208,7 +213,8 @@ private fun StatusActionButtons(
             title = { Text("Подтверждение действия") },
             text = { Text(dialogText) },
             confirmButton = {
-                Button(onClick = { actionToConfirm?.invoke(); showConfirmDialog = false }) { Text("Да") }
+                // Используем TextButton для "Да" для соответствия гайдлайнам M3
+                TextButton(onClick = { actionToConfirm?.invoke(); showConfirmDialog = false }) { Text("Да") }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmDialog = false }) { Text("Отмена") }
@@ -223,7 +229,6 @@ private fun StatusActionButtons(
             OrderStatus.IN_TRANSIT_TO_LOAD -> ActionButton("Машина загружена") { onActionClick("Машина загружена") { viewModel.changeStatus(order.id, OrderStatus.LOADED); viewModel.setActiveTrack(null) } }
             OrderStatus.LOADED -> ActionButton("В дороге на место разгрузки") { onActionClick("В дороге на место разгрузки") { viewModel.changeStatus(order.id, OrderStatus.IN_TRANSIT_TO_UNLOAD); order.trackId?.let { onShowTrackOnMap(it) } } }
 
-            // Логика, как на скриншоте: несколько действий
             OrderStatus.IN_TRANSIT_TO_UNLOAD, OrderStatus.PARKED -> {
                 if (order.status == OrderStatus.PARKED) {
                     ActionButton("Продолжить движение") { onActionClick("Продолжить движение") { viewModel.changeStatus(order.id, OrderStatus.IN_TRANSIT_TO_UNLOAD); order.trackId?.let { onShowTrackOnMap(it) } } }
@@ -233,12 +238,10 @@ private fun StatusActionButtons(
                 ActionButton("Прибыл на место разгрузки") { onActionClick("Прибыл на место разгрузки") { viewModel.changeStatus(order.id, OrderStatus.ARRIVED_FOR_UNLOADING); viewModel.setActiveTrack(null) } }
             }
 
-            // Логика, как на скриншоте: финальный этап
             OrderStatus.ARRIVED_FOR_UNLOADING, OrderStatus.UNLOADED -> {
                 if (order.status == OrderStatus.ARRIVED_FOR_UNLOADING) {
                     ActionButton("Машина разгружена") { onActionClick("Машина разгружена") { viewModel.changeStatus(order.id, OrderStatus.UNLOADED) } }
                 }
-                // Кнопка "Завершить" (Забрал документы)
                 ActionButton(
                     text = "Завершить",
                     enabled = documentsAttached,

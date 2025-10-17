@@ -112,6 +112,41 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
+    fun createOrder(
+        from: String,
+        to: String,
+        contractor: String,
+        cargoType: String,
+        cargoWeight: String,
+        comments: String
+    ) {
+        viewModelScope.launch {
+            val newOrderId = System.currentTimeMillis()
+            val order = Order(
+                id = newOrderId,
+                from = from,
+                to = to,
+                requestNumber = newOrderId.toString().takeLast(6), // Генерируе т заявки
+                status = OrderStatus.PLACED,
+                estimatedDays = 3, // Значение по умолчанию
+                trackId = null,
+                date = "Только что", // Значение по умолчанию
+                statusName = OrderStatus.PLACED.displayName,
+                codAmount = null
+            )
+            try {
+                repository.insert(order)
+                _uiState.update { currentState ->
+                    currentState.copy(orders = listOf(order) + currentState.orders)
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error creating order", e)
+                _uiState.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+
     fun createOrder(from: String, to: String, requestNumber: String, estimatedDays: Int) {
         viewModelScope.launch {
             val order = Order(
