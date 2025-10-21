@@ -12,7 +12,7 @@ fun OrderDto.toDomain(): Order {
     val fromVal = this.fromAddress ?: this.from ?: ""
     val toVal = this.toAddress ?: this.to ?: ""
     val reqNum = this.requestNumber ?: this.requestNumberAlt ?: ""
-    val days = this.estimatedDays ?: this.estimatedDaysAlt ?: 1
+    val days = this.estimatedDays ?: this.estimatedDaysAlt
 
     // Безопасный метод fromString из enum
     val statusVal = OrderStatus.fromString(this.status)
@@ -20,7 +20,8 @@ fun OrderDto.toDomain(): Order {
     val dateVal = this.date ?: "Нет даты"
     // Если с сервера не пришло имя статуса, берет его из enum
     val statusNameVal = this.statusName ?: statusVal.displayName
-    val codAmountVal = this.codAmount // Это поле может быть null
+
+    val codAmountVal = this.codAmount?.toDoubleOrNull()
 
     return Order(
         id = idLong,

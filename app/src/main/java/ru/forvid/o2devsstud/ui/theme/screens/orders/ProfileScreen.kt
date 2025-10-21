@@ -9,8 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,8 +22,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import ru.forvid.o2devsstud.domain.model.DriverProfile
-import ru.forvid.o2devsstud.ui.theme.viewmodel.AuthViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.ProfileViewModel
+import ru.forvid.o2devsstud.ui.theme.viewmodel.AuthViewModel
+import androidx.compose.ui.tooling.preview.Preview
+import ru.forvid.o2devsstud.ui.theme.O2DevsStudTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,8 +63,12 @@ fun ProfileScreen(
                 )
                 uiState.profile != null -> ProfileContent(
                     profile = uiState.profile!!,
-                    viewModel = profileViewModel,
-                    authViewModel = authViewModel,
+                    onEdit = { /* навигация */ },
+                    onLogout = {
+                        profileViewModel.logout()
+                        authViewModel.onSignOut()
+                    },
+                    onBack = onBack,
                     contentPadding = innerPadding
                 )
             }
@@ -70,17 +76,20 @@ fun ProfileScreen(
     }
 }
 
+/**
+ * Чистая UI-функция — подходит для превью и тестов.
+ * Для выбора фото в рантайме используйте rememberLauncherForActivityResult в caller (или в ProfileScreen).
+ */
 @Composable
-private fun ProfileContent(
+fun ProfileContent(
     profile: DriverProfile,
-    viewModel: ProfileViewModel,
-    authViewModel: AuthViewModel,
-    contentPadding: PaddingValues
+    onEdit: () -> Unit,
+    onLogout: () -> Unit,
+    onBack: () -> Unit,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    val pickImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { viewModel.saveAvatarUri(it) }
-    }
-
+    // В реальном рантайме можно вынести и использовать launcher в ProfileScreen,
+    // а здесь для preview мы показываем статичный UI.
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -100,7 +109,8 @@ private fun ProfileContent(
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
-            IconButton(onClick = { pickImageLauncher.launch("image/*") }) {
+            // В preview / UI-only варианте кнопка просто дергает onEdit
+            IconButton(onClick = onEdit) {
                 Icon(Icons.Default.Edit, contentDescription = "Изменить фото")
             }
         }
@@ -127,7 +137,7 @@ private fun ProfileContent(
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-            onClick = { authViewModel.onSignOut() },
+            onClick = onLogout,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Выйти")
@@ -149,6 +159,34 @@ private fun ProfileInfoRow(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(0.6f)
+        )
+    }
+}
+
+/* ---------------------------
+   Preview
+   --------------------------- */
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 640, name = "Profile - preview")
+@Composable
+private fun ProfilePreview() {
+    val p = DriverProfile(
+        id = 1L,
+        fullName = "Иванов Иван",
+        column = "Колонна 1",
+        phoneDriver = "+7 900 000 00 00",
+        phoneColumn = "+7 900 000 00 01",
+        phoneLogist = "+7 900 000 00 02",
+        email = "ivan@example.com",
+        avatarUrl = null
+    )
+
+    O2DevsStudTheme {
+        ProfileContent(
+            profile = p,
+            onEdit = {},
+            onLogout = {},
+            onBack = {}
         )
     }
 }

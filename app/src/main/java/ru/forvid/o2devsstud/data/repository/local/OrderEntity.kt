@@ -10,9 +10,9 @@ data class OrderEntity(
     val toAddress: String,
     val requestNumber: String,
     val status: String,
-    val estimatedDays: Int,
     val trackId: Long?,
     val date: String,
     val statusName: String,
-    val codAmount: String?
+    val estimatedDays: Int?,
+    val codAmount: Double?
 )

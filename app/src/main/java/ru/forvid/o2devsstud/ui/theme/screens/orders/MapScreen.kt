@@ -1,4 +1,4 @@
-package ru.forvid.o2devsstud.ui.screens
+package ru.forvid.o2devsstud.ui.theme.screens.orders
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -30,8 +31,10 @@ import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.MapView
-import com.google.android.gms.maps.model.*
-import ru.forvid.o2devsstud.data.remote.dto.TrackDto
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PolylineOptions
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.TrackState
 
@@ -66,15 +69,13 @@ fun MapScreen(
         if (trackIdToShow != null) {
             viewModel.fetchTrack(trackIdToShow)
         } else {
-            // Если ID трека null, очищает состояние, чтобы убрать старый трек с карты
             viewModel.clearTrackState()
         }
     }
 
     val mapView = rememberMapViewWithLifecycle(lifecycleOwner)
     val googleMapRef = remember { mutableStateOf<GoogleMap?>(null) }
-    val polylineRef = remember { mutableStateOf<Polyline?>(null) }
-
+    val mapObjects = remember { mutableStateListOf<MapObject>() }
     val fused = remember { LocationServices.getFusedLocationProviderClient(context) }
     var lastLocation by remember { mutableStateOf<Location?>(null) }
 
@@ -88,27 +89,23 @@ fun MapScreen(
 
     LaunchedEffect(locationGranted) {
         if (locationGranted) {
-            try {
-                val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5_000L)
-                    .setMinUpdateDistanceMeters(5f)
-                    .setMaxUpdateDelayMillis(10_000L)
-                    .build()
-                fused.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
-            } catch (_: Throwable) { /* ignore */ }
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5_000L)
+                .setMinUpdateDistanceMeters(5f)
+                .setMaxUpdateDelayMillis(10_000L)
+                .build()
+            fused.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
         } else {
-            try { fused.removeLocationUpdates(locationCallback) } catch (_: Throwable) {}
+            fused.removeLocationUpdates(locationCallback)
         }
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            try { fused.removeLocationUpdates(locationCallback) } catch (_: Throwable) {}
+            fused.removeLocationUpdates(locationCallback)
         }
     }
 
-    // --- Оборачивает всё в Column, чтобы управлять TopAppBar ---
     Column(modifier = modifier.fillMaxSize()) {
-        // Показывает TopAppBar только если showTopBar = true
         if (showTopBar) {
             TopAppBar(
                 title = { Text("Карта") },
@@ -121,32 +118,26 @@ fun MapScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         }
 
-        // Карта теперь всегда внутри Box
         Box(modifier = Modifier.fillMaxSize()) {
             AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize()) { mv ->
-                mv.getMapAsync { g ->
-                    googleMapRef.value = g
-                    g.uiSettings.isZoomControlsEnabled = true
-
-                    if (locationGranted &&
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-                        == PackageManager.PERMISSION_GRANTED
-                    ) {
+                mv.getMapAsync { googleMap ->
+                    googleMapRef.value = googleMap
+                    googleMap.uiSettings.isZoomControlsEnabled = true
+                    if (locationGranted) {
                         try {
-                            g.isMyLocationEnabled = true
+                            googleMap.isMyLocationEnabled = true
                         } catch (_: SecurityException) { /* ignore */ }
                     }
-
-                    when (val s = trackState) {
-                        is TrackState.Success -> drawTrackOnMap(g, s.track, polylineRef)
-                        // При очистке состояния убираем линию с карты
-                        is TrackState.Idle -> polylineRef.value?.remove()
-                        else -> {}
-                    }
+                    googleMap.clear()
+                    mapObjects.forEach { it.draw(googleMap) }
                 }
             }
 
@@ -164,15 +155,13 @@ fun MapScreen(
                         if (g != null && loc != null) {
                             g.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 14f))
                         } else {
-                            try {
-                                fused.lastLocation.addOnSuccessListener { l ->
-                                    l?.let {
-                                        googleMapRef.value?.animateCamera(
-                                            CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 14f)
-                                        )
-                                    }
+                            fused.lastLocation.addOnSuccessListener { l: Location? ->
+                                l?.let {
+                                    googleMapRef.value?.animateCamera(
+                                        CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 14f)
+                                    )
                                 }
-                            } catch (_: Throwable) { }
+                            }
                         }
                     },
                     shape = CircleShape,
@@ -182,56 +171,90 @@ fun MapScreen(
                 }
             }
 
-            when (trackState) {
+            // Этот when обрабатывает UI-элементы (загрузчик, снекбар)
+            val currentTrackState = trackState
+            when (currentTrackState) {
                 is TrackState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
                 is TrackState.Error -> {
-                    val msg = (trackState as TrackState.Error).message ?: "Ошибка"
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                        Text(text = "Ошибка загрузки трека: $msg", modifier = Modifier.padding(12.dp))
+                    val msg = currentTrackState.message ?: "Ошибка"
+                    Snackbar(modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)) {
+                        Text(text = "Ошибка загрузки трека: $msg")
                     }
                 }
-                else -> {}
+                is TrackState.Idle, is TrackState.Success -> {
+                    // Ничего не показывает поверх карты в этих состояниях
+                }
             }
         }
     }
 
-    LaunchedEffect(googleMapRef.value, trackState) {
-        val g = googleMapRef.value ?: return@LaunchedEffect
-        when (val s = trackState) {
-            is TrackState.Success -> drawTrackOnMap(g, s.track, polylineRef)
-            // При очистке состояния убираем линию с карты
-            is TrackState.Idle -> polylineRef.value?.remove()
-            else -> {}
+    // Этот LaunchedEffect отвечает за отрисовку объектов на карте
+    LaunchedEffect(trackState) {
+        val gMap = googleMapRef.value ?: return@LaunchedEffect
+        mapObjects.clear()
+
+        val currentTrackState = trackState
+        when (currentTrackState) {
+            is TrackState.Success -> {
+                val points = currentTrackState.track.points.mapNotNull { point ->
+                    if (point.lat != null && point.lng != null) {
+                        LatLng(point.lat, point.lng)
+                    } else {
+                        null
+                    }
+                }
+                if (points.isNotEmpty()) {
+                    mapObjects.add(MapObject.PolylineObject(points))
+                    points.firstOrNull()?.let { mapObjects.add(
+                        MapObject.MarkerObject(
+                            it,
+                            "Начало маршрута"
+                        )
+                    ) }
+                    points.lastOrNull()?.let { mapObjects.add(
+                        MapObject.MarkerObject(
+                            it,
+                            "Конец маршрута"
+                        )
+                    ) }
+
+                    val boundsBuilder = LatLngBounds.builder()
+                    points.forEach { boundsBuilder.include(it) }
+                    gMap.animateCamera(CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 150))
+                }
+            }
+            is TrackState.Error, is TrackState.Idle, is TrackState.Loading -> {
+                // В этих состояниях карта должна быть чистой от старого трека.
+                // mapObjects уже очищен, так что здесь ничего делать не нужно.
+            }
         }
+        gMap.clear()
+        mapObjects.forEach { it.draw(gMap) }
     }
 }
 
-private fun drawTrackOnMap(g: GoogleMap, track: TrackDto, polylineRef: MutableState<Polyline?>) {
-    val safePoints = (track.points ?: emptyList()).mapNotNull { p ->
-        val lat = p.lat ?: return@mapNotNull null
-        val lon = p.lon ?: p.lng ?: return@mapNotNull null
-        LatLng(lat, lon)
+private sealed class MapObject {
+    abstract fun draw(googleMap: GoogleMap)
+
+    data class MarkerObject(val position: LatLng, val title: String, val snippet: String? = null) : MapObject() {
+        override fun draw(googleMap: GoogleMap) {
+            googleMap.addMarker(MarkerOptions().position(position).title(title).snippet(snippet))
+        }
     }
 
-    try { polylineRef.value?.remove() } catch (_: Throwable) { /* ignore */ }
-
-    if (safePoints.isEmpty()) return
-
-    val polyline = g.addPolyline(PolylineOptions().addAll(safePoints).width(8f))
-    polylineRef.value = polyline
-
-    try {
-        val builder = LatLngBounds.builder()
-        safePoints.forEach { builder.include(it) }
-        val bounds = builder.build()
-        val padding = 150
-        g.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding))
-    } catch (_: Throwable) {
-        g.moveCamera(CameraUpdateFactory.newLatLngZoom(safePoints.first(), 12f))
+    data class PolylineObject(val points: List<LatLng>) : MapObject() {
+        override fun draw(googleMap: GoogleMap) {
+            googleMap.addPolyline(
+                PolylineOptions()
+                    .addAll(points)
+                    .color(android.graphics.Color.BLUE)
+                    .width(15f)
+            )
+        }
     }
 }
 
@@ -258,4 +281,18 @@ fun rememberMapViewWithLifecycle(lifecycleOwner: LifecycleOwner): MapView {
     }
 
     return mapView
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, widthDp = 360, heightDp = 640, name = "Map - preview")
+@Composable
+private fun MapScreenPreview() {
+    ru.forvid.o2devsstud.ui.theme.O2DevsStudTheme {
+        Column(modifier = Modifier.fillMaxSize()) {
+            TopAppBar(title = { Text("Карта (Preview)") })
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Map preview — AndroidView(MapView) не отображается в Preview")
+            }
+        }
+    }
 }

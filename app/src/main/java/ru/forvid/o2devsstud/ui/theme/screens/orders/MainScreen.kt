@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import ru.forvid.o2devsstud.ui.components.AppDrawer
@@ -29,11 +30,22 @@ fun MainScreen(
     val profileViewModel: ProfileViewModel = hiltViewModel(activity)
     val ordersViewModel: OrdersViewModel = hiltViewModel(activity)
 
+    val currentBackStackEntry = mainNavController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry.value?.destination?.route
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             AppDrawer(
-                mainNavController = mainNavController,
+                currentRoute = currentRoute,
+                onNavigate = { route ->
+                    mainNavController.navigate(route) {
+                        launchSingleTop = true
+                        popUpTo(mainNavController.graph.startDestinationId)
+                    }
+                    // Закрывает меню после навигации
+                    scope.launch { drawerState.close() }
+                },
                 onSignOut = { authViewModel.onSignOut() },
                 closeDrawer = { scope.launch { drawerState.close() } },
                 profileViewModel = profileViewModel
@@ -52,13 +64,14 @@ fun MainScreen(
                 )
             }
         ) { paddingValues ->
-            // --- Передает authViewModel в MainAppNavGraph ---
+
             MainAppNavGraph(
                 navController = mainNavController,
-                paddingValues = paddingValues,
+                paddingValues = paddingValues, // Передает padding от Scaffold
                 ordersViewModel = ordersViewModel,
                 profileViewModel = profileViewModel,
-                authViewModel = authViewModel
+                authViewModel = authViewModel,
+                onDrawerOpen = { scope.launch { drawerState.open() } }
             )
         }
     }

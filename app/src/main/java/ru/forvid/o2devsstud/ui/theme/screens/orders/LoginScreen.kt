@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.forvid.o2devsstud.ui.theme.viewmodel.AuthViewModel
+import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
 fun LoginScreen(
@@ -102,6 +103,26 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium
             )
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 640, name = "Login Preview")
+@Composable
+private fun LoginPreview() {
+    var username by remember { mutableStateOf("user@example.com") }
+    var password by remember { mutableStateOf("password") }
+    ru.forvid.o2devsstud.ui.theme.O2DevsStudTheme {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Вход", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(32.dp))
+            OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Логин") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Пароль") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                Text("Войти")
+            }
         }
     }
 }

@@ -19,6 +19,7 @@ import ru.forvid.o2devsstud.ui.viewmodel.HistoryViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
 import ru.forvid.o2devsstud.ui.viewmodel.ProfileViewModel
 import ru.forvid.o2devsstud.ui.theme.screens.orders.MainScreen
+import ru.forvid.o2devsstud.ui.theme.screens.orders.MapScreen
 
 sealed class Screen(val route: String) {
     object AuthFlow : Screen("auth_flow")
@@ -73,7 +74,8 @@ fun MainAppNavGraph(
     paddingValues: PaddingValues,
     ordersViewModel: OrdersViewModel,
     profileViewModel: ProfileViewModel,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    onDrawerOpen: () -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -91,7 +93,8 @@ fun MainAppNavGraph(
             OrdersScreen(
                 onOpenOrder = { orderId -> navController.navigate(Screen.OrderDetails.createRoute(orderId)) },
                 onCreateOrder = { navController.navigate(Screen.CreateOrder.route) },
-                viewModel = ordersViewModel
+                viewModel = ordersViewModel,
+                onDrawerOpen = onDrawerOpen
             )
         }
         composable(Screen.CreateOrder.route) {
@@ -101,7 +104,6 @@ fun MainAppNavGraph(
             route = Screen.OrderDetails.route,
             arguments = listOf(navArgument("orderId") { type = NavType.LongType })
         ) {
-            // --- ИСПРАВЛЕНИЕ 2: Возвращена правильная логика для OrderDetailsScreen ---
             OrderDetailsScreen(
                 orderId = it.arguments?.getLong("orderId") ?: 0L,
                 onBack = { navController.popBackStack() },

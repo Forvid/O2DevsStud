@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.tooling.preview.Preview
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -157,6 +158,43 @@ fun CreateOrderScreen(
             ) {
                 Text("ОТПРАВИТЬ ЗАЯВКУ")
             }
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 800, name = "CreateOrder Preview")
+@Composable
+private fun CreateOrderScreenPreview() {
+    ru.forvid.o2devsstud.ui.theme.O2DevsStudTheme {
+        // Копия формы для preview — использует локальное состояние, не зависит от ViewModel
+        var fromAddress by remember { mutableStateOf("Москва") }
+        var toAddress by remember { mutableStateOf("Казань") }
+        var contractor by remember { mutableStateOf("ООО Рога") }
+        var cargoType by remember { mutableStateOf("Песок") }
+        var cargoWeight by remember { mutableStateOf("10") }
+        var comments by remember { mutableStateOf("Комментарий") }
+
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            OutlinedTextField(value = fromAddress, onValueChange = { fromAddress = it }, label = { Text("Откуда") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(value = toAddress, onValueChange = { toAddress = it }, label = { Text("Куда") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(value = contractor, onValueChange = { contractor = it }, label = { Text("Контрагент") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(value = cargoType, onValueChange = { cargoType = it }, label = { Text("Тип груза") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(value = cargoWeight, onValueChange = { cargoWeight = it }, label = { Text("Вес груза, т") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(value = comments, onValueChange = { comments = it }, label = { Text("Комментарии") }, modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp))
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("ОТПРАВИТЬ ЗАЯВКУ") }
         }
     }
 }

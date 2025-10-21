@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import ru.forvid.o2devsstud.domain.model.HistoryItem
 import ru.forvid.o2devsstud.ui.viewmodel.HistoryViewModel
+import androidx.compose.ui.tooling.preview.Preview
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,5 +98,17 @@ private fun HistoryList(items: List<HistoryItem>) {
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 640, name = "History - preview")
+@Composable
+private fun HistoryListPreview() {
+    val sample = listOf(
+        HistoryItem(id = 1, from = "Москва Т1", to = "Тверь", timeOnRoute = "3ч 12м", contractorName = "ООО Пример"),
+        HistoryItem(id = 2, from = "Казань", to = "Уфа", timeOnRoute = "5ч 33м", contractorName = "ООО Контрагент")
+    )
+    ru.forvid.o2devsstud.ui.theme.O2DevsStudTheme {
+        HistoryList(items = sample)
     }
 }

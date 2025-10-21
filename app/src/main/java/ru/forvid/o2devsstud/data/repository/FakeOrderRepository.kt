@@ -22,7 +22,8 @@ class FakeOrdersRepository @Inject constructor() : OrdersRepository {
             estimatedDays = 1,
             date = "24.07.2024",
             statusName = "Заказ размещен",
-            codAmount = "15000 RUB"
+            // --- ИСПРАВЛЕНИЕ: Передаем число Double, а не строку ---
+            codAmount = 15000.0
         ),
         Order(
             id = 2L,

@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.tooling.preview.Preview
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,5 +42,13 @@ fun ConfirmedScreen(orderId: Long, onBack: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 420, name = "Confirmed Preview")
+@Composable
+private fun ConfirmedPreview() {
+    ru.forvid.o2devsstud.ui.theme.O2DevsStudTheme {
+        ConfirmedScreen(orderId = 123L, onBack = {})
     }
 }

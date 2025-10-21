@@ -15,6 +15,7 @@ class RoomOrdersRepository @Inject constructor(
     private val dao: OrderDao
 ) : OrdersRepository {
 
+    // Преобразует сущность БД (Entity) в доменную модель (Order)
     private fun entityToDomain(e: OrderEntity): Order = Order(
         id = e.id,
         from = e.fromAddress,

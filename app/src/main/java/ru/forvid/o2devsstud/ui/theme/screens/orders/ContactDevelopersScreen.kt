@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 
 private const val DEVELOPER_PHONE_NUMBER = "+79991234567" // TODO: Заменить на реальный номер
 private const val DEVELOPER_EMAIL = "support@example.com" // TODO: Заменить на реальный email
@@ -103,5 +104,15 @@ fun ContactDevelopersScreen(
                 Text("Написать разработчику")
             }
         }
+    }
+}
+
+// Preview для ContactDevelopersScreen
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 640, name = "ContactDev Preview")
+@Composable
+private fun ContactDevelopersScreenPreview() {
+    ru.forvid.o2devsstud.ui.theme.O2DevsStudTheme {
+        ContactDevelopersScreen(onBack = {})
     }
 }

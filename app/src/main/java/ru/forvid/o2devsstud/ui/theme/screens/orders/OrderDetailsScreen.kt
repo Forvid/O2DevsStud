@@ -16,11 +16,38 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ru.forvid.o2devsstud.domain.model.Order
 import ru.forvid.o2devsstud.domain.model.OrderStatus
 import ru.forvid.o2devsstud.ui.viewmodel.OrdersViewModel
+
+// --- Вспомогательные функции для OrderStatus ---
+private fun OrderStatus.next(): OrderStatus? = when (this) {
+    OrderStatus.PLACED -> OrderStatus.TAKEN
+    OrderStatus.TAKEN -> OrderStatus.IN_TRANSIT_TO_LOAD
+    OrderStatus.IN_TRANSIT_TO_LOAD -> OrderStatus.LOADED
+    OrderStatus.LOADED -> OrderStatus.IN_TRANSIT_TO_UNLOAD
+    OrderStatus.IN_TRANSIT_TO_UNLOAD -> OrderStatus.ARRIVED_FOR_UNLOADING
+    OrderStatus.PARKED -> OrderStatus.IN_TRANSIT_TO_UNLOAD
+    OrderStatus.ARRIVED_FOR_UNLOADING -> OrderStatus.UNLOADED
+    OrderStatus.UNLOADED -> OrderStatus.DOCUMENTS_TAKEN
+    else -> null
+}
+
+// Это свойство определяет, является ли статус кнопкой, которую нажимает пользователь
+private val OrderStatus.isUserAction: Boolean
+    get() = this in listOf(
+        OrderStatus.TAKEN,
+        OrderStatus.IN_TRANSIT_TO_LOAD,
+        OrderStatus.LOADED,
+        OrderStatus.IN_TRANSIT_TO_UNLOAD,
+        OrderStatus.ARRIVED_FOR_UNLOADING,
+        OrderStatus.UNLOADED,
+        OrderStatus.DOCUMENTS_TAKEN
+    )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +74,6 @@ fun OrderDetailsScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
-                // Добавляем цвета из M3 темы
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -103,7 +129,7 @@ private fun OrderContentView(
         InfoCard(order = order)
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (order.status in listOf(OrderStatus.ARRIVED_FOR_UNLOADING, OrderStatus.UNLOADED)) {
+        if (order.status in listOf(OrderStatus.ARRIVED_FOR_UNLOADING, OrderStatus.UNLOADED, OrderStatus.DOCUMENTS_TAKEN)) {
             DocumentsCard(
                 attachedDocuments = attachedDocuments,
                 onAddDocument = { viewModel.addDocument(order.id, it) },
@@ -125,13 +151,18 @@ private fun OrderContentView(
 
 @Composable
 private fun InfoCard(order: Order) {
-    // Card уже из M3, все в порядке
-    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
+    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             InfoRow(label = "Откуда:", value = order.from)
             InfoRow(label = "Куда:", value = order.to)
             InfoRow(label = "Статус:", value = order.status.displayName)
-            InfoRow(label = "Расчетное время:", value = "${order.estimatedDays} дн.")
+            InfoRow(label = "Дата:", value = order.date)
+            order.estimatedDays?.let { InfoRow(label = "Расчетное время:", value = "$it дн.") }
+            order.codAmount?.let {
+                if (it > 0) {
+                    InfoRow(label = "Сумма нал. платежа:", value = "$it руб.", isImportant = true)
+                }
+            }
         }
     }
 }
@@ -182,10 +213,20 @@ private fun DocumentsCard(
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, modifier = Modifier.width(150.dp))
-        Text(value, style = MaterialTheme.typography.bodyLarge)
+private fun InfoRow(label: String, value: String, isImportant: Boolean = false) {
+    Row(verticalAlignment = Alignment.Top) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray,
+            modifier = Modifier.width(150.dp)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isImportant) FontWeight.Bold else FontWeight.Normal,
+            color = if (isImportant) MaterialTheme.colorScheme.error else LocalContentColor.current
+        )
     }
 }
 
@@ -213,7 +254,6 @@ private fun StatusActionButtons(
             title = { Text("Подтверждение действия") },
             text = { Text(dialogText) },
             confirmButton = {
-                // Используем TextButton для "Да" для соответствия гайдлайнам M3
                 TextButton(onClick = { actionToConfirm?.invoke(); showConfirmDialog = false }) { Text("Да") }
             },
             dismissButton = {
@@ -222,41 +262,32 @@ private fun StatusActionButtons(
         )
     }
 
+    val nextStatus = order.status.next()
+
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        when (order.status) {
-            OrderStatus.PLACED -> ActionButton("Взял в работу") { onActionClick("Взял в работу") { viewModel.changeStatus(order.id, OrderStatus.TAKEN) } }
-            OrderStatus.TAKEN -> ActionButton("В пути к месту погрузки") { onActionClick("В пути к месту погрузки") { viewModel.changeStatus(order.id, OrderStatus.IN_TRANSIT_TO_LOAD); order.trackId?.let { onShowTrackOnMap(it) } } }
-            OrderStatus.IN_TRANSIT_TO_LOAD -> ActionButton("Машина загружена") { onActionClick("Машина загружена") { viewModel.changeStatus(order.id, OrderStatus.LOADED); viewModel.setActiveTrack(null) } }
-            OrderStatus.LOADED -> ActionButton("В дороге на место разгрузки") { onActionClick("В дороге на место разгрузки") { viewModel.changeStatus(order.id, OrderStatus.IN_TRANSIT_TO_UNLOAD); order.trackId?.let { onShowTrackOnMap(it) } } }
+        // Проходиь по всем статусам, которые являются действиями пользователя
+        OrderStatus.entries.filter { it.isUserAction }.forEach { status ->
+            // Определяет, является ли эта кнопка следующей активной
+            val isEnabled = status == nextStatus
+            // Особое условие для кнопки "Завершить"
+            val isFinishButton = status == OrderStatus.DOCUMENTS_TAKEN
+            val isFinishButtonEnabled = isEnabled && documentsAttached
 
-            OrderStatus.IN_TRANSIT_TO_UNLOAD, OrderStatus.PARKED -> {
-                if (order.status == OrderStatus.PARKED) {
-                    ActionButton("Продолжить движение") { onActionClick("Продолжить движение") { viewModel.changeStatus(order.id, OrderStatus.IN_TRANSIT_TO_UNLOAD); order.trackId?.let { onShowTrackOnMap(it) } } }
-                } else {
-                    ActionButton("На стоянке", isOutlined = true) { onActionClick("На стоянке") { viewModel.changeStatus(order.id, OrderStatus.PARKED); viewModel.setActiveTrack(null) } }
-                }
-                ActionButton("Прибыл на место разгрузки") { onActionClick("Прибыл на место разгрузки") { viewModel.changeStatus(order.id, OrderStatus.ARRIVED_FOR_UNLOADING); viewModel.setActiveTrack(null) } }
-            }
-
-            OrderStatus.ARRIVED_FOR_UNLOADING, OrderStatus.UNLOADED -> {
-                if (order.status == OrderStatus.ARRIVED_FOR_UNLOADING) {
-                    ActionButton("Машина разгружена") { onActionClick("Машина разгружена") { viewModel.changeStatus(order.id, OrderStatus.UNLOADED) } }
-                }
-                ActionButton(
-                    text = "Завершить",
-                    enabled = documentsAttached,
-                    onClick = {
-                        onActionClick("Завершить") {
-                            viewModel.changeStatus(order.id, OrderStatus.DOCUMENTS_TAKEN)
+            ActionButton(
+                text = status.displayName,
+                isEnabled = if (isFinishButton) isFinishButtonEnabled else isEnabled,
+                onClick = {
+                    onActionClick(status.displayName) {
+                        viewModel.changeStatus(order.id, status)
+                        if ((status == OrderStatus.IN_TRANSIT_TO_LOAD || status == OrderStatus.IN_TRANSIT_TO_UNLOAD) && order.trackId != null) {
+                            onShowTrackOnMap(order.trackId)
+                        }
+                        if (isFinishButton) {
                             onConfirm(order.id)
                         }
                     }
-                )
-            }
-
-            else -> {
-                Text("Для статуса \"${order.status.displayName}\" нет доступных действий.", modifier = Modifier.padding(vertical = 16.dp), style = MaterialTheme.typography.bodyMedium)
-            }
+                }
+            )
         }
     }
 }
@@ -264,18 +295,62 @@ private fun StatusActionButtons(
 @Composable
 private fun ActionButton(
     text: String,
-    enabled: Boolean = true,
-    isOutlined: Boolean = false,
+    isEnabled: Boolean,
     onClick: () -> Unit
 ) {
-    val modifier = Modifier.fillMaxWidth().height(48.dp)
-    if (isOutlined) {
-        OutlinedButton(onClick = onClick, enabled = enabled, modifier = modifier) {
-            Text(text)
-        }
-    } else {
-        Button(onClick = onClick, enabled = enabled, modifier = modifier) {
-            Text(text)
+    Button(
+        onClick = onClick,
+        enabled = isEnabled,
+        modifier = Modifier.fillMaxWidth().height(48.dp),
+        colors = ButtonDefaults.buttonColors(
+            // Если кнопка активна (enabled) - она красная. Если нет - серая.
+            containerColor = Color(0xFFE53935),
+            contentColor = Color.White,
+            disabledContainerColor = Color.LightGray,
+            disabledContentColor = Color.DarkGray
+        )
+    ) {
+        Text(text)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, name = "Order Details Preview")
+@Composable
+fun OrderDetailsScreenPreview() {
+    val sampleOrder = Order(
+        id = 1L,
+        from = "Москва, ул. Тверская, д.1",
+        to = "Санкт-Петербург, Невский проспект, д. 24, кв. 5",
+        requestNumber = "A-123456",
+        status = OrderStatus.LOADED,
+        estimatedDays = 3,
+        trackId = 100L,
+        date = "20.10.2025",
+        statusName = OrderStatus.LOADED.displayName,
+        codAmount = 15000.0
+    )
+
+    MaterialTheme {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Заявка №${sampleOrder.requestNumber}") },
+                    navigationIcon = {
+                        IconButton(onClick = {}) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        }
+                    }
+                )
+            }
+        ) { padding ->
+            Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+                InfoCard(order = sampleOrder)
+                Spacer(modifier = Modifier.height(16.dp))
+                ActionButton(text = "Взял в работу", isEnabled = false, onClick = {})
+                ActionButton(text = "В дороге на место разгрузки", isEnabled = true, onClick = {})
+                ActionButton(text = "Прибыл на место разгрузки", isEnabled = false, onClick = {})
+            }
         }
     }
 }
