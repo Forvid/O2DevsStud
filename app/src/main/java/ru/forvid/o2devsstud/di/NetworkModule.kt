@@ -24,7 +24,7 @@ object NetworkModule {
     @Singleton
     fun provideApiKeyInterceptor(): Interceptor = Interceptor { chain ->
         val request = chain.request().newBuilder()
-            .addHeader("X-API-KEY", "c1378193-bc0e-42c8-a502-b8d66d189617")
+            .addHeader("X-API-KEY", BuildConfig.SERVER_API_KEY)
             .build()
         chain.proceed(request)
     }
