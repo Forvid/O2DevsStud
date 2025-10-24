@@ -11,7 +11,6 @@ import ru.forvid.o2devsstud.data.auth.AppAuth
 import ru.forvid.o2devsstud.data.repository.repository.AuthRepository
 import javax.inject.Inject
 
-// Переименовываю AuthState в AuthUiState, чтобы не путать с AuthState из AppAuth.
 data class AuthUiState(
     val isAuthorized: Boolean = false,
     val isLoading: Boolean = false,
@@ -28,40 +27,42 @@ class AuthViewModel @Inject constructor(
     val authState: StateFlow<AuthUiState> = _authState.asStateFlow()
 
     init {
-        // При создании ViewModel подписываюсь на изменения в AppAuth.
-        // Это гарантирует, что UI всегда будет отражать реальное состояние авторизации.
+        // Подписывает на AppAuth — когда token станет не-null, считаем пользователя авторизованным.
         viewModelScope.launch {
-            appAuth.authState.collect { authState ->
-                _authState.value = AuthUiState(isAuthorized = authState.token != null)
+            appAuth.authState.collect { auth ->
+                _authState.value = AuthUiState(
+                    isAuthorized = auth.token != null,
+                    isLoading = false,
+                    error = null
+                )
             }
         }
     }
 
     fun login(username: String, password: String) {
-        // Проверrf, не идет ли уже загрузка.
-        if (_authState.value.isLoading) {
-            return
-        }
-        // Простая валидация на клиенте.
+        // Защита от одновременных вызовов
+        if (_authState.value.isLoading) return
+
+        // Простая валидация
         if (username.isBlank() || password.isBlank()) {
             _authState.value = _authState.value.copy(error = "Логин и пароль не могут быть пустыми")
             return
         }
 
         viewModelScope.launch {
-            // 1. Устанавливаю состояние "загрузка".
-            _authState.value = AuthUiState(isLoading = true)
+            // Показывает загрузку, сбрасываем предыдущие ошибки
+            _authState.value = _authState.value.copy(isLoading = true, error = null)
             try {
-                // 2. Вызываю реальный метод репозитория для выполнения входа.
                 repository.login(username, password)
-                // 3. Если вызов прошел успешно, AppAuth обновит свое состояние.
-                // `init`-блок выше "увидит" это изменение и автоматически
-                // установит isAuthorized = true. Больше здесь ничего делать не нужно.
-
-            } catch (e: Exception) {
-                // 4. В случае любой ошибки (сетевой, 404 и т.д.) показываю сообщение.
-                // Сбрасываю isLoading и устанавливаю текст ошибки.
-                _authState.value = AuthUiState(isLoading = false, error = "Неверный логин или пароль")
+                // Успех — AppAuth обновит поток, init{} обработает это и выставит isAuthorized=true и isLoading=false.
+                // Ничего дополнительно не делаем здесь.
+            } catch (e: Throwable) {
+                // Показывает читаемое сообщение об ошибке
+                val message = when (e) {
+                    is IllegalArgumentException -> e.message ?: "Неверные данные"
+                    else -> "Ошибка входа: ${e.message ?: "неизвестная ошибка"}"
+                }
+                _authState.value = AuthUiState(isAuthorized = false, isLoading = false, error = message)
             }
         }
     }

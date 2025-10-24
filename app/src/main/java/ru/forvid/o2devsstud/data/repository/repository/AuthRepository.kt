@@ -8,36 +8,48 @@ import kotlin.random.Random
 
 /**
  * Репозиторий для авторизации.
- * Его задача - сходить в сеть и сохранить результат в AppAuth.
+ * Его задача - выполнить вход (в dev-режиме — эмулировать), и сохранить результат в AppAuth.
  */
 @Singleton
 class AuthRepository @Inject constructor(
     private val apiService: ApiService,
-    private val appAuth: AppAuth // Инжектирую хранилище состояния.
+    private val appAuth: AppAuth
 ) {
-    // --- ВРЕМЕННЫЙ КОД ДЛЯ ТЕСТИРОВАНИЯ ---
-    private val isDevelopmentMode = true
+    /**
+     * Флаг разработки.
+     * В debug/локальной сборке можно держать true, чтобы было проще тестировать.
+     * Перед релизом переключите в false.
+     */
+    private val isDevelopmentMode: Boolean = true
+
+    /**
+     * Demo credentials — те, которые вы будете передавать преподавателю.
+     * Можно расширить список при необходимости.
+     */
+    private val demoLogin = "demo"
+    private val demoPassword = "demo123"
 
     /**
      * Выполняет вход пользователя.
-     * В случае успеха сохраняет токен в AppAuth.
-     * В случае ошибки выбрасывает исключение, которое будет поймано в ViewModel.
+     * В development-режиме — если учётные совпадают с demo — устанавливаем фиктивный токен в AppAuth.
+     * Иначе, при isDevelopmentMode = false — делаем реальный сетевой вызов.
      */
     suspend fun login(username: String, password: String) {
-        // --- ВРЕМЕННЫЙ КОД ДЛЯ ТЕСТИРОВАНИЯ ---
         if (isDevelopmentMode) {
-            // Если включен режим разработки, имитируем успешный вход
-            // и генерирует случайный фейковый токен.
-            val fakeToken = "fake_token_${Random.nextLong()}"
-            appAuth.setAuth(fakeToken)
-            return
+            // Если переданы demo-учётные — эмитирует успешный вход.
+            if (username == demoLogin && password == demoPassword) {
+                val fakeToken = "demo_token_123456" // фиксированный токен удобнее для отладки
+                appAuth.setAuth(fakeToken)
+                return
+            } else {
+                // В режиме разработки другие комбинации считает неверными — бросает исключение,
+                // чтобы ViewModel показала сообщение "неверный логин/пароль".
+                throw IllegalArgumentException("Invalid demo credentials")
+            }
         }
-        // --- КОНЕЦ ВРЕМЕННОГО КОДА ---
 
-        // Выполняю реальный сетевой запрос.
-        // Этот код будет работать, только если isDevelopmentMode = false.
+        // --- production: реальный сетевой вызов ---
         val response = apiService.login(LoginRequestDto(login = username, password = password))
-        // Сохраняю полученный токен.
         appAuth.setAuth(response.token)
     }
 

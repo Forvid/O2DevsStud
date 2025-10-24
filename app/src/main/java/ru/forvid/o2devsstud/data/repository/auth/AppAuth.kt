@@ -7,10 +7,10 @@ import javax.inject.Singleton
 
 @Singleton
 class AppAuth @Inject constructor() {
-    // Приватный MutableStateFlow, чтобы изменять состояние можно было только из этого класса.
+    // Приватный MutableStateFlow — изменять состояние можно только из этого класса.
     private val _authState = MutableStateFlow(AuthState())
 
-    // Публичный StateFlow только для чтения состояния извне.
+    // Публичный StateFlow только для чтения.
     val authState = _authState.asStateFlow()
 
     /**
@@ -29,7 +29,7 @@ class AppAuth @Inject constructor() {
 
     /**
      * Внутренний класс, описывающий состояние.
-     * Наличие токена означает, что пользователь авторизован.
+     * Наличие token != null означает, что пользователь авторизован.
      */
     data class AuthState(val token: String? = null)
 }
